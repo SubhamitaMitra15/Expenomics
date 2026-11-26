@@ -1,0 +1,2145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EXPENOMICS | Project Financial Management</title>
+
+<!-- =====================================================================
+     EXPENOMICS  -  PROJECT COST ESTIMATION AND FINANCIAL MANAGEMENT
+     ---------------------------------------------------------------------
+     HOW THIS FILE IS ORGANISED (read this first):
+       PART 1  <style>   : all colours, 3D buttons, cards and layout.
+       PART 2  <body>    : the screens (login screen, then the app pages).
+       PART 3  <script>  : all the logic (login, tax, calculation, reports).
+
+     IMPORTANT FACTS:
+       * No database and no server. Everything is saved in the browser
+         "session storage". When the browser TAB is closed, data is gone.
+       * Login is a demo. Do not use a real password.
+       * Tax rates are starter presets. Always confirm with the tax office.
+
+     INPUT RULES (this version):
+       * Password   : EXACTLY 8 characters with a letter, a number and a symbol.
+                      Same rule and same live message (3/8 ... 8/8) on SIGN UP and LOGIN.
+                      Shorter = "must be exactly 8" message. Longer = cannot be typed.
+                      Letters, numbers and any unique symbol are supported. No spaces.
+       * Name fields: letters only (client, company type, project, manager,
+                      team member, expense name). Marked with data-filter="letters".
+       * Phone      : digits only. The country code is filled automatically.
+       * Budget     : numbers only (decimal allowed).
+       * Emails     : must be a valid email address.
+       * MANDATORY  : fields listed in REQUIRED_IDS (script part 3.1) show a red *
+                      and cannot be left empty.
+     ===================================================================== -->
+
+<style>
+/* =====================================================================
+   PART 1 : STYLES
+   ===================================================================== */
+
+/* ---- 1.1 COLOUR VARIABLES -------------------------------------------
+   Every colour lives here. Dark mode only swaps these values,
+   so the whole app changes theme automatically. */
+:root{
+  --bg:#e9edfa; --surface:#ffffff; --surface2:#f3f5fd; --text:#1f2542;
+  --muted:#6d7692; --line:#dfe4f1; --primary:#6558e8; --primary2:#8f6cf7;
+  --accent:#17b3a0; --danger:#e0506f; --warning:#e2a13a;
+  --input:#f7f8fe; --nav:#f6f7ff;
+  --edge:#4137ad;            /* dark edge colour of the 3D purple button */
+  --edge-teal:#0a7a6d;       /* dark edge of the teal button */
+  --edge-red:#a02a47;        /* dark edge of the red button */
+  --edge-grey:#cfd5e6;       /* dark edge of the grey button */
+  --card-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 22px 40px rgba(44,52,100,.13),0 5px 0 rgba(80,75,160,.10);
+}
+body.dark{
+  --bg:#0f1320; --surface:#1a2133; --surface2:#222b41; --text:#eff1ff;
+  --muted:#a3adc7; --line:#2f3a54; --primary:#8b7cff; --primary2:#a98cff;
+  --accent:#35cbb4; --danger:#ff718d; --warning:#ffc36b;
+  --input:#151c2c; --nav:#151c2c;
+  --edge:#4a3fb5; --edge-teal:#0c8576; --edge-red:#a8334f; --edge-grey:#10151f;
+  --card-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 22px 44px rgba(0,0,0,.4),0 5px 0 rgba(0,0,0,.25);
+}
+
+/* ---- 1.2 BASIC RESET ------------------------------------------------- */
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:Inter,"Segoe UI",Arial,sans-serif;transition:background .25s,color .25s}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+hr{border:0;border-top:1px solid var(--line);margin:20px 0}
+
+/* ---- 1.3 BRAND TEXT -------------------------------------------------- */
+.brand{font-weight:900;letter-spacing:2px;font-size:26px;
+  background:linear-gradient(120deg,var(--primary),var(--accent));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.tagline{font-size:11px;letter-spacing:1.4px;color:var(--muted);margin-top:4px}
+
+/* ---- 1.4 3D BUTTONS ---------------------------------------------------
+   The button has a coloured "edge" shadow under it. On hover it lifts,
+   on click it is pushed down. This makes it look like a real 3D key. */
+.btn{border:0;border-radius:14px;padding:12px 18px;color:#fff;font-weight:750;
+  background:linear-gradient(180deg,var(--primary2),var(--primary));
+  box-shadow:0 6px 0 var(--edge),0 14px 22px rgba(80,66,200,.28);
+  transform:translateY(0);transition:transform .15s,box-shadow .15s,filter .15s}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.07);
+  box-shadow:0 8px 0 var(--edge),0 18px 26px rgba(80,66,200,.32)}
+.btn:active{transform:translateY(5px);box-shadow:0 1px 0 var(--edge),0 4px 8px rgba(80,66,200,.25)}
+.btn.secondary{background:linear-gradient(180deg,var(--surface),var(--surface2));color:var(--text);
+  box-shadow:0 6px 0 var(--edge-grey),0 12px 20px rgba(40,50,100,.12)}
+.btn.secondary:hover{box-shadow:0 8px 0 var(--edge-grey),0 16px 24px rgba(40,50,100,.15)}
+.btn.secondary:active{box-shadow:0 1px 0 var(--edge-grey)}
+.btn.teal{background:linear-gradient(180deg,#38d2bd,#12a896);
+  box-shadow:0 6px 0 var(--edge-teal),0 14px 22px rgba(20,170,150,.25)}
+.btn.teal:hover{box-shadow:0 8px 0 var(--edge-teal),0 18px 26px rgba(20,170,150,.3)}
+.btn.teal:active{box-shadow:0 1px 0 var(--edge-teal)}
+.btn.danger{background:linear-gradient(180deg,#ff7d97,#df4c6d);
+  box-shadow:0 6px 0 var(--edge-red),0 14px 22px rgba(220,70,100,.25)}
+.btn.danger:hover{box-shadow:0 8px 0 var(--edge-red),0 18px 26px rgba(220,70,100,.3)}
+.btn.danger:active{box-shadow:0 1px 0 var(--edge-red)}
+.btn.sm{padding:8px 12px;font-size:12px;border-radius:10px;
+  box-shadow:0 4px 0 var(--edge),0 8px 14px rgba(80,66,200,.22)}
+.btn.sm.secondary{box-shadow:0 4px 0 var(--edge-grey),0 8px 14px rgba(40,50,100,.10)}
+.btn.sm.teal{box-shadow:0 4px 0 var(--edge-teal),0 8px 14px rgba(20,170,150,.2)}
+.btn.sm.danger{box-shadow:0 4px 0 var(--edge-red),0 8px 14px rgba(220,70,100,.2)}
+.btn.sm:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.2)}
+.btn.block{width:100%;margin-top:22px}
+
+/* ---- 1.5 CARDS, PILLS, NOTICE BOXES ---------------------------------- */
+.card{background:linear-gradient(160deg,var(--surface),var(--surface2));border:1px solid var(--line);
+  border-radius:22px;padding:22px;box-shadow:var(--card-shadow);transition:transform .2s,box-shadow .2s}
+.card-title{font-size:16px;font-weight:850;margin:0 0 15px}
+.pill{display:inline-flex;align-items:center;padding:6px 11px;border-radius:30px;font-size:11px;
+  font-weight:800;background:var(--surface2);color:var(--muted)}
+.pill.good{background:rgba(23,179,160,.14);color:var(--accent)}
+.pill.warn{background:rgba(226,161,58,.16);color:var(--warning)}
+.pill.bad{background:rgba(224,80,111,.14);color:var(--danger)}
+.notice{padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);
+  color:var(--muted);font-size:12px;line-height:1.65}
+.notice strong{color:var(--text)}
+
+/* ---- 1.6 FORM FIELDS (inputs look slightly pressed into the page) ---- */
+.field{display:flex;flex-direction:column;gap:7px;min-width:0}
+.field label{font-size:12px;color:var(--muted);font-weight:750}
+.field input,.field select,.field textarea{width:100%;min-height:44px;border:1px solid var(--line);
+  background:var(--input);color:var(--text);border-radius:12px;padding:11px 12px;outline:none;
+  box-shadow:inset 0 3px 6px rgba(30,40,90,.07)}
+.field textarea{min-height:84px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary);
+  box-shadow:inset 0 3px 6px rgba(30,40,90,.07),0 0 0 3px rgba(101,88,232,.18)}
+.field input[readonly]{opacity:.75}
+/* A red border is shown on a field that failed validation. */
+.invalid{border-color:var(--danger)!important;box-shadow:0 0 0 3px rgba(224,80,111,.18)!important}
+/* A red star is added after the label of every mandatory field. */
+.req::after{content:" *";color:var(--danger);font-weight:900}
+
+/* ---- 1.6b COUNTRY DROP-DOWN LIST (opens under the country box) ------- */
+.country-list{position:absolute;top:100%;left:0;right:0;z-index:30;max-height:240px;overflow:auto;
+  margin-top:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--card-shadow)}
+.country-item{padding:9px 12px;cursor:pointer;font-size:13px;color:var(--text)}
+.country-item:hover{background:var(--surface2)}
+.country-item.empty{cursor:default;color:var(--muted)}
+
+/* ---- 1.7 GRID HELPERS ------------------------------------------------ */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.full{grid-column:1/-1}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.between{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.mt{margin-top:16px}
+
+/* ---- 1.8 LOGIN SCREEN (with a rotating 3D cube) ---------------------- */
+.auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px;
+  background:radial-gradient(circle at 15% 20%,rgba(101,88,232,.2),transparent 32%),
+             radial-gradient(circle at 90% 85%,rgba(23,179,160,.16),transparent 30%),var(--bg)}
+.auth-card{width:min(980px,100%);display:grid;grid-template-columns:1fr 1fr;overflow:hidden;padding:0}
+.auth-art{padding:40px;color:#fff;min-height:560px;display:flex;flex-direction:column;
+  justify-content:space-between;background:linear-gradient(145deg,#272160,#6558e8 60%,#17b3a0)}
+.auth-art h1{font-size:40px;line-height:1.08;margin:22px 0 12px}
+.auth-art p{color:#e9eaff;line-height:1.7}
+.scene{width:130px;height:130px;perspective:700px;margin:10px auto}
+.cube{width:100%;height:100%;position:relative;transform-style:preserve-3d;animation:spin 16s linear infinite}
+.face{position:absolute;width:130px;height:130px;display:grid;place-items:center;font-weight:900;
+  letter-spacing:1px;color:#fff;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.14)}
+.f1{transform:translateZ(65px)}.f2{transform:rotateY(90deg) translateZ(65px)}
+.f3{transform:rotateY(180deg) translateZ(65px)}.f4{transform:rotateY(-90deg) translateZ(65px)}
+.f5{transform:rotateX(90deg) translateZ(65px)}.f6{transform:rotateX(-90deg) translateZ(65px)}
+@keyframes spin{from{transform:rotateX(-22deg) rotateY(0)}to{transform:rotateX(-22deg) rotateY(360deg)}}
+.auth-form{padding:40px}
+.auth-form h2{margin:28px 0 6px;font-size:25px}
+.auth-form .field{margin-top:14px}
+.auth-switch{margin-top:18px;font-size:13px;color:var(--muted)}
+.link{color:var(--primary);font-weight:800;cursor:pointer}
+
+/* ---- 1.9 MAIN APP LAYOUT --------------------------------------------- */
+.app{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.sidebar{background:var(--nav);border-right:1px solid var(--line);padding:22px 14px;
+  position:sticky;top:0;height:100vh;overflow:auto}
+.side-brand{padding:4px 10px 22px}
+.nav-label{font-size:10px;letter-spacing:1.5px;color:var(--muted);font-weight:900;padding:14px 12px 8px}
+.nav-btn{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;border:0;border-radius:13px;
+  background:transparent;color:var(--muted);text-align:left;font-weight:750;margin:4px 0;
+  transition:transform .15s,background .15s,box-shadow .15s}
+.nav-btn:hover{background:var(--surface2);color:var(--text);transform:translateX(4px)}
+.nav-btn.active{color:var(--primary);background:linear-gradient(110deg,rgba(101,88,232,.18),rgba(23,179,160,.08));
+  box-shadow:inset 4px 0 var(--primary),0 6px 12px rgba(60,60,140,.08)}
+/* small raised square that holds a letter in front of each menu name */
+.nav-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;font-size:12px;font-weight:900;
+  background:linear-gradient(145deg,var(--surface),var(--surface2));color:var(--primary);
+  box-shadow:0 3px 0 var(--line),0 6px 10px rgba(40,50,100,.1)}
+.sidebar-bottom{margin-top:24px;padding:8px}
+.main{min-width:0;padding:24px 30px 50px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:24px}
+.page-title{font-size:26px;font-weight:900;margin:0}
+.page-sub{font-size:12px;color:var(--muted);margin-top:5px}
+.top-actions{display:flex;gap:10px;align-items:center}
+.theme-toggle{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:30px;
+  padding:9px 14px;font-weight:800;box-shadow:0 4px 0 var(--line)}
+.theme-toggle:active{transform:translateY(3px);box-shadow:none}
+.mobile-menu{display:none}
+
+/* pages: only the active one is visible */
+.content-section{display:none}
+.content-section.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:.3;transform:translateY(6px)}to{opacity:1;transform:none}}
+.section-head{margin:0 0 17px}
+.section-head h2{font-size:20px;margin:0 0 5px}
+.section-head p{font-size:12px;color:var(--muted);margin:0}
+
+/* ---- 1.10 STAT BOXES (tilt in 3D when the mouse is over them) -------- */
+.stat{padding:18px;border-radius:18px;border:1px solid var(--line);
+  background:linear-gradient(145deg,var(--surface),var(--surface2));box-shadow:var(--card-shadow);
+  transition:transform .2s,box-shadow .2s}
+.stat:hover{transform:perspective(800px) rotateX(4deg) rotateY(-4deg) translateY(-4px)}
+.stat-label{color:var(--muted);font-size:12px;font-weight:700}
+.stat-value{font-size:23px;font-weight:900;margin-top:9px;overflow-wrap:anywhere}
+.stat-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;font-size:13px;font-weight:900;
+  color:#fff;background:linear-gradient(145deg,var(--primary2),var(--primary));box-shadow:0 4px 0 var(--edge)}
+
+/* ---- 1.11 TABLES ----------------------------------------------------- */
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);font-size:12px}
+th{background:var(--surface2);color:var(--muted);font-weight:850}
+tr:last-child td{border-bottom:0}
+.table-input{width:100%;min-width:92px;background:var(--input);color:var(--text);border:1px solid var(--line);
+  border-radius:9px;padding:8px}
+.table-input:disabled{opacity:.8;background:transparent;border-color:transparent}
+.editing-row{background:rgba(101,88,232,.07)}
+.edit-hint{font-size:11px;color:var(--muted);margin-top:9px;line-height:1.6}
+
+/* ---- 1.12 SUMMARY LINES AND PROGRESS BARS ---------------------------- */
+.summary-line{display:flex;justify-content:space-between;gap:12px;padding:10px 0;
+  border-bottom:1px dashed var(--line);font-size:13px}
+.summary-line:last-child{border:0}
+.big-total{font-size:26px;font-weight:950;color:var(--primary)}
+.progress{height:10px;background:var(--surface2);border-radius:20px;overflow:hidden;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.12)}
+.progress span{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.bar-row{margin:12px 0}
+.bar-row .between{font-size:12px;margin-bottom:6px}
+
+/* ---- 1.13 TOAST MESSAGE (small popup at bottom right) ---------------- */
+.toast{position:fixed;right:22px;bottom:22px;background:var(--text);color:var(--surface);padding:13px 17px;
+  border-radius:13px;box-shadow:0 14px 30px rgba(0,0,0,.3);z-index:99;font-size:13px;max-width:340px}
+
+/* ---- 1.14 REPORT PAPER (always white, like real paper) --------------- */
+.report-paper{background:#fff;color:#202642;padding:28px;border-radius:12px;overflow-wrap:anywhere}
+.report-paper h3{color:#28235f;margin:24px 0 8px;font-size:15px}
+.report-paper table{min-width:0;margin-bottom:6px}
+.report-paper th{background:#f0efff;color:#444}
+.report-paper th,.report-paper td{color:#242944;border:1px solid #e3e5f0}
+.rp-head{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-bottom:3px solid #6558e8;padding-bottom:16px}
+.pb{display:none}
+.footer-note{font-size:11px;color:var(--muted);line-height:1.6;margin-top:20px}
+
+/* ---- 1.15 PRINT AREA --------------------------------------------------
+   A PDF is made with the browser Print window ("Save as PDF").
+   The hidden #printArea is filled with the report, and only that is printed. */
+#printArea{display:none}
+@page{margin:14mm}
+@media print{
+  body.printing{background:#fff!important}
+  body.printing #authScreen,body.printing #appScreen,body.printing #toast{display:none!important}
+  body.printing #printArea{display:block!important}
+  body.printing .report-paper{padding:0}
+  body.printing .pb{display:block;break-before:page}
+  body.printing table{page-break-inside:auto}
+  body.printing tr{page-break-inside:avoid}
+}
+
+/* ---- 1.16 PHONE AND TABLET SIZES ------------------------------------- */
+@media(max-width:1050px){.app{grid-template-columns:225px 1fr}.main{padding:22px}.grid.four{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){
+  .app{display:block}
+  .sidebar{position:fixed;z-index:20;left:-280px;width:260px;transition:left .25s;box-shadow:0 0 30px rgba(0,0,0,.3)}
+  .sidebar.open{left:0}
+  .main{padding:16px}.mobile-menu{display:inline-flex}
+  .topbar{align-items:flex-start}
+  .grid,.grid.three,.grid.four{grid-template-columns:1fr 1fr}
+  .auth-card{grid-template-columns:1fr}.auth-art{min-height:300px;padding:26px}.auth-art h1{font-size:30px}.auth-form{padding:26px}
+}
+@media(max-width:520px){.grid,.grid.three,.grid.four{grid-template-columns:1fr}.page-title{font-size:21px}}
+/* people who dislike animation get a still cube */
+@media(prefers-reduced-motion:reduce){.cube{animation:none}.content-section.active{animation:none}}
+</style>
+</head>
+
+<body>
+<!-- =====================================================================
+     PART 2 : SCREENS
+     ===================================================================== -->
+
+<!-- ---------------------------------------------------------------------
+     2.1  SIGN UP / LOGIN SCREEN
+     --------------------------------------------------------------------- -->
+<div id="authScreen" class="auth-wrap">
+  <div class="card auth-card">
+    <div class="auth-art">
+      <div>
+        <div style="font-size:13px;font-weight:900;letter-spacing:2px">EXPENOMICS</div>
+        <h1>Plan smarter.<br>Price better.</h1>
+        <p>Project costs, team budgets, GST / VAT / sales tax and professional reports for any country.</p>
+      </div>
+      <!-- rotating 3D cube made only with CSS -->
+      <div class="scene"><div class="cube">
+        <div class="face f1">GST</div><div class="face f2">VAT</div><div class="face f3">TAX</div>
+        <div class="face f4">COST</div><div class="face f5">PRO</div><div class="face f6">FIN</div>
+      </div></div>
+      <div style="font-size:11px;color:#e9eaff">PROJECT COST ESTIMATION AND FINANCIAL MANAGEMENT</div>
+    </div>
+
+    <div class="auth-form">
+      <div class="brand">EXPENOMICS</div>
+      <div class="tagline">YOUR PROJECT FINANCE WORKSPACE</div>
+
+      <!-- Sign up form (all fields are mandatory) -->
+      <div id="signupBox">
+        <h2>Create your account</h2>
+        <p class="muted small">Your account is kept only for this browser tab session. Fields marked * are mandatory.</p>
+        <div class="field"><label for="signupName">Full name (letters only)</label><input id="signupName" data-filter="letters" placeholder="Enter your full name" autocomplete="name" maxlength="80"></div>
+        <div class="field"><label for="signupEmail">Email address</label><input id="signupEmail" type="email" placeholder="name@example.com" autocomplete="email" maxlength="120"></div>
+        <div class="field"><label for="signupPassword">Create password</label>
+          <div class="row"><input id="signupPassword" type="password" placeholder="Exactly 8 characters, e.g. Abc@1234" style="flex:1" autocomplete="new-password" maxlength="8">
+          <button type="button" class="btn secondary sm" data-action="togglePw" data-field="signupPassword">Show</button></div>
+          <small class="muted">Password must be exactly 8 characters with a letter, a number and a symbol (like @ # $ ! %). No spaces.</small>
+          <!-- Live counter: shows 0/8 ... 8/8 while the user types -->
+          <small id="pwCount" class="muted"></small></div>
+        <div class="field"><label for="signupConfirm">Confirm password</label>
+          <div class="row"><input id="signupConfirm" type="password" placeholder="Type password again" style="flex:1" autocomplete="new-password" maxlength="8">
+          <button type="button" class="btn secondary sm" data-action="togglePw" data-field="signupConfirm">Show</button></div>
+          <!-- Live counter for the confirm box too -->
+          <small id="confirmCount" class="muted"></small></div>
+        <button type="button" class="btn block" data-action="createAccount">Create Account</button>
+        <div class="auth-switch">Already registered in this tab? <span class="link" data-action="showLogin">Login</span></div>
+      </div>
+
+      <!-- Login form (all fields are mandatory) -->
+      <div id="loginBox" class="hidden">
+        <h2>Welcome back</h2>
+        <p class="muted small">Login with the account you created in this tab.</p>
+        <div class="field"><label for="loginEmail">Email address</label><input id="loginEmail" type="email" placeholder="name@example.com" autocomplete="email"></div>
+        <div class="field"><label for="loginPassword">Password</label>
+          <div class="row"><input id="loginPassword" type="password" placeholder="Your 8 character password" style="flex:1" autocomplete="current-password" maxlength="8">
+          <button type="button" class="btn secondary sm" data-action="togglePw" data-field="loginPassword">Show</button></div>
+          <small class="muted">Password must be exactly 8 characters with a letter, a number and a symbol (like @ # $ ! %). No spaces.</small>
+          <!-- Same live counter as sign up -->
+          <small id="loginPwCount" class="muted"></small></div>
+        <button type="button" class="btn block" data-action="loginAccount">Login</button>
+        <div class="auth-switch">New here? <span class="link" data-action="showSignup">Create an account</span></div>
+      </div>
+
+      <div class="notice" style="margin-top:22px"><strong>Session-only demo:</strong> This is a front-end project with no server. Do not use a real or reused password. Closing the tab ends the saved session. This is not secure production authentication.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ---------------------------------------------------------------------
+     2.2  MAIN APPLICATION (shown after login)
+     --------------------------------------------------------------------- -->
+<div id="appScreen" class="app hidden">
+
+  <!-- Left menu -->
+  <aside id="sidebar" class="sidebar">
+    <div class="side-brand"><div class="brand">EXPENOMICS</div><div class="tagline">PROJECT FINANCE STUDIO</div></div>
+    <div class="nav-label">WORKSPACE</div>
+    <button type="button" class="nav-btn active" data-page="dashboard" data-action="nav"><span class="nav-icon">D</span>Dashboard</button>
+    <button type="button" class="nav-btn" data-page="project" data-action="nav"><span class="nav-icon">P</span>Client and Project</button>
+    <button type="button" class="nav-btn" data-page="companies" data-action="nav"><span class="nav-icon">C</span>Company Directory</button>
+    <button type="button" class="nav-btn" data-page="team" data-action="nav"><span class="nav-icon">T</span>Team and Manager</button>
+    <button type="button" class="nav-btn" data-page="expenses" data-action="nav"><span class="nav-icon">E</span>Expenses</button>
+    <button type="button" class="nav-btn" data-page="calculation" data-action="nav"><span class="nav-icon">F</span>Financial Calculation</button>
+    <button type="button" class="nav-btn" data-page="report" data-action="nav"><span class="nav-icon">R</span>Review and Report</button>
+    <div class="sidebar-bottom">
+      <div class="notice">Enter information once. It is reused in every calculation and report.</div>
+      <button type="button" class="nav-btn" style="margin-top:14px" data-action="logout"><span class="nav-icon">X</span>Logout</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="row">
+        <button type="button" class="btn secondary sm mobile-menu" data-action="menu">Menu</button>
+        <div><h1 id="pageTitle" class="page-title">Dashboard</h1><div id="welcomeText" class="page-sub">Your project financial overview</div></div>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="theme-toggle" id="themeButton" data-action="theme">Dark mode</button>
+        <span class="pill" id="userPill">Signed in</span>
+      </div>
+    </header>
+
+    <!-- ===== PAGE: DASHBOARD ===== -->
+    <section id="dashboardSection" class="content-section active">
+      <div class="section-head"><h2>Financial overview</h2><p>All totals update automatically when you change project details.</p></div>
+      <div class="grid four" style="margin-bottom:18px">
+        <div class="stat"><div class="between"><span class="stat-label">Team cost</span><span class="stat-icon">T</span></div><div class="stat-value" id="dashTeam">0</div></div>
+        <div class="stat"><div class="between"><span class="stat-label">Other expenses</span><span class="stat-icon">E</span></div><div class="stat-value" id="dashExpenses">0</div></div>
+        <div class="stat"><div class="between"><span class="stat-label">Total project cost</span><span class="stat-icon">S</span></div><div class="stat-value" id="dashCost">0</div></div>
+        <div class="stat"><div class="between"><span class="stat-label">Final client price</span><span class="stat-icon">F</span></div><div class="stat-value" id="dashFinal">0</div></div>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="between"><h3 class="card-title">Project snapshot</h3><span class="pill" id="dashBudgetStatus">No budget</span></div>
+          <div class="summary-line"><span>Project</span><strong id="dashProject">Not entered</strong></div>
+          <div class="summary-line"><span>Project ID</span><strong id="dashId">-</strong></div>
+          <div class="summary-line"><span>Client</span><strong id="dashClient">Not entered</strong></div>
+          <div class="summary-line"><span>Country / Currency</span><strong id="dashCountry">-</strong></div>
+          <div class="summary-line"><span>Project duration</span><strong id="dashDuration">-</strong></div>
+          <div style="margin-top:16px"><div class="between small"><span class="muted">Budget usage</span><strong id="budgetPercent">0%</strong></div>
+            <div class="progress" style="margin-top:8px"><span id="budgetBar" style="width:0%"></span></div></div>
+        </div>
+        <div class="card">
+          <h3 class="card-title">Cost breakdown</h3>
+          <div id="breakdown"></div>
+          <div class="row mt">
+            <button type="button" class="btn" data-action="nav" data-page="project">Start project details</button>
+            <button type="button" class="btn secondary" data-action="nav" data-page="report">Open report</button>
+          </div>
+          <div class="footer-note">Your work is saved in this browser tab session only. It is never sent to a server.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: CLIENT AND PROJECT ===== -->
+    <section id="projectSection" class="content-section">
+      <div class="section-head"><h2>Client and project information</h2><p>Enter the details once. They appear in the reports. Fields marked * are mandatory.</p></div>
+      <div class="card">
+        <h3 class="card-title">Client information</h3>
+        <div class="grid three">
+          <div class="field"><label for="clientType">Client type</label><select id="clientType"><option>Individual</option><option>Company</option><option>Organization</option><option>Startup</option></select></div>
+          <div class="field"><label for="clientName">Client / company name (letters only)</label><input id="clientName" data-filter="letters" placeholder="Client name" maxlength="100"></div>
+          <div class="field"><label for="clientStatus">Client status</label><select id="clientStatus"><option>New Client</option><option>Existing Client</option><option>Returning Client</option><option>VIP Client</option></select></div>
+
+          <!-- Country: type a letter (for example "I") and every country starting with it appears. -->
+          <div class="field" style="position:relative"><label for="countrySearch">Country (type first letter, e.g. I)</label>
+            <input id="countrySearch" placeholder="Type or pick a country" autocomplete="off">
+            <div id="countryList" class="country-list hidden"></div>
+            <input id="country" type="hidden" value="IN">
+          </div>
+          <div class="field"><label for="companyType">Company type (letters only)</label><input id="companyType" data-filter="letters" placeholder="e.g. Private Limited" maxlength="60"></div>
+
+          <!-- Email and phone are two separate fields. The phone code follows the country automatically. -->
+          <div class="field"><label for="clientEmail">Client email address</label><input id="clientEmail" type="email" maxlength="120" placeholder="client@example.com"></div>
+          <div class="field"><label for="clientPhoneCode">Phone country code (automatic)</label><input id="clientPhoneCode" placeholder="+91" maxlength="9" readonly></div>
+          <div class="field"><label for="clientContact">Client phone number (digits only)</label><input id="clientContact" type="tel" inputmode="numeric" data-filter="digits" maxlength="15" placeholder="Number without country code"></div>
+        </div>
+
+        <hr>
+        <h3 class="card-title">Project information</h3>
+        <div class="grid three">
+          <div class="field"><label for="projectName">Project name (letters only)</label><input id="projectName" data-filter="letters" placeholder="Project name" maxlength="100"></div>
+          <div class="field"><label for="projectId">Project ID (automatic)</label><input id="projectId" readonly><small class="muted">Created in order: EXP-0001, EXP-0002 ...</small></div>
+          <div class="field"><label for="projectType">Project type</label><select id="projectType"><option>Website</option><option>Web Application</option><option>Mobile Application</option><option>E-commerce</option><option>Desktop Application</option><option>Software Development</option><option>UI/UX Design</option><option>Graphic Design</option><option>Digital Marketing</option><option>SEO</option><option>Maintenance</option><option>Other</option></select></div>
+          <!-- This box appears only when "Other" is chosen as project type. -->
+          <div class="field hidden" id="otherProjectTypeField"><label for="otherProjectType">Write your project type</label><input id="otherProjectType" placeholder="Describe the project type" maxlength="80"></div>
+          <div class="field"><label for="priority">Project priority</label><select id="priority"><option>Low</option><option selected>Medium</option><option>High</option><option>Urgent</option></select></div>
+          <div class="field"><label for="pricingType">Pricing type</label><select id="pricingType"><option>Fixed Price</option><option>Hourly Rate</option><option>Milestone Based</option><option>Monthly</option><option>Custom</option></select></div>
+          <div class="field"><label for="currency">Currency</label><select id="currency"></select></div>
+          <div class="field"><label for="budget">Client budget (numbers only)</label><input id="budget" type="text" inputmode="decimal" data-filter="decimal" maxlength="15" placeholder="0.00"></div>
+          <div class="field"><label for="startDate">Start date</label><input id="startDate" type="date"></div>
+          <div class="field"><label for="endDate">End date</label><input id="endDate" type="date"></div>
+          <div class="field full"><label for="projectNotes">Project scope / notes (optional)</label><textarea id="projectNotes" maxlength="1000" placeholder="Short description of the work"></textarea></div>
+        </div>
+        <div class="notice mt">Choosing a country sets its currency, phone code and a starter tax preset automatically. You can change the currency and tax. The currency only changes the display unit; there is no live exchange rate conversion. Tax rules can differ by state, city, product and service, so always verify with the official tax authority.</div>
+        <div class="row mt">
+          <button type="button" class="btn" data-action="saveProject">Save project details</button>
+          <button type="button" class="btn secondary" data-action="nav" data-page="team">Continue to team</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: COMPANY DIRECTORY ===== -->
+    <section id="companiesSection" class="content-section">
+      <div class="section-head"><h2>Company Directory</h2><p>Every saved company is listed here. Open a company to see its report, edit it, or download its PDF.</p></div>
+      <div class="card">
+        <div class="between"><h3 class="card-title">Saved companies</h3>
+          <div class="row"><button type="button" class="btn secondary sm" data-action="saveProject">Save current company</button>
+          <button type="button" class="btn sm" data-action="newProject">New project</button></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Company / Client</th><th>Project ID</th><th>Project</th><th>Country</th><th>Saved on</th><th>Actions</th></tr></thead><tbody id="companyRows"></tbody></table></div>
+        <p class="edit-hint">This list uses temporary browser session storage. It is not a permanent database and is cleared when the tab is closed.</p>
+      </div>
+      <div id="companyPreview" class="card hidden mt">
+        <div class="between"><h3 class="card-title">Saved company report</h3><button type="button" class="btn teal" data-action="downloadCompany">Download company PDF</button></div>
+        <div id="companyPreviewContent" class="report-paper"></div>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: TEAM ===== -->
+    <section id="teamSection" class="content-section">
+      <div class="section-head"><h2>Team and project manager</h2><p>Add the people needed for the project. Costs are added automatically. Fields marked * are mandatory.</p></div>
+      <div class="card" style="margin-bottom:16px">
+        <h3 class="card-title">Project manager</h3>
+        <div class="grid three">
+          <div class="field"><label for="managerName">Manager name (letters only)</label><input id="managerName" data-filter="letters" placeholder="Manager name" maxlength="80"></div>
+          <div class="field"><label for="managerContact">Manager email</label><input id="managerContact" type="email" placeholder="manager@example.com" maxlength="120"></div>
+          <div class="field"><label for="managerCost">Manager cost</label><input id="managerCost" type="number" min="0" step="0.01" value="0"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="between"><h3 class="card-title">Team members</h3><button type="button" class="btn sm" data-action="addMember">Add member</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Name *</th><th>Role</th><th>Employment</th><th>Payment</th><th>Experience</th><th>Cost *</th><th>Actions</th></tr></thead><tbody id="teamRows"></tbody></table></div>
+        <div class="edit-hint">A new member opens in edit mode. Fill the row (name and cost are mandatory) and press Save. Saved rows are locked; press Edit to correct a mistake.</div>
+        <div class="between mt"><span class="muted small">Team total includes the project manager cost.</span><strong id="teamTotal">0</strong></div>
+        <div class="row mt"><button type="button" class="btn" data-action="nav" data-page="expenses">Continue to expenses</button></div>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: EXPENSES ===== -->
+    <section id="expensesSection" class="content-section">
+      <div class="section-head"><h2>Project expenses</h2><p>Record development, marketing and other project expenses. All rows can be edited at any time.</p></div>
+      <div class="card">
+        <div class="between"><h3 class="card-title">Expense entries</h3>
+          <div class="row"><button type="button" class="btn secondary sm" data-action="addExpense">Add expense</button>
+          <button type="button" class="btn teal sm" data-action="saveExpenses">Save expenses</button></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Expense name *</th><th>Category</th><th>Type</th><th>Payment status</th><th>Payment method</th><th>Date *</th><th>Amount *</th><th></th></tr></thead><tbody id="expenseRows"></tbody></table></div>
+        <div class="grid four mt">
+          <div class="stat"><div class="stat-label">Development</div><div class="stat-value" id="developmentTotal">0</div></div>
+          <div class="stat"><div class="stat-label">Marketing</div><div class="stat-value" id="marketingTotal">0</div></div>
+          <div class="stat"><div class="stat-label">Other</div><div class="stat-value" id="otherTotal">0</div></div>
+          <div class="stat"><div class="stat-label">Paid / Not fully paid</div><div class="stat-value" style="font-size:16px" id="paidTotal">0</div></div>
+        </div>
+        <div class="row mt"><button type="button" class="btn" data-action="nav" data-page="calculation">Continue to financial calculation</button></div>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: FINANCIAL CALCULATION ===== -->
+    <section id="calculationSection" class="content-section">
+      <div class="section-head"><h2>Financial calculation</h2><p>Profit, discount, tax and payment terms. Amounts update live.</p></div>
+      <div class="grid">
+        <div class="card">
+          <h3 class="card-title">Profit and price adjustment</h3>
+          <div class="grid">
+            <div class="field"><label for="profitType">Profit type</label><select id="profitType"><option value="percent">Percentage</option><option value="fixed">Fixed amount</option></select></div>
+            <div class="field"><label for="profitValue">Profit value (% or amount)</label><input id="profitValue" type="number" min="0" step="0.01" value="20"></div>
+            <div class="field"><label for="adjustmentType">Adjustment</label><select id="adjustmentType"><option value="none">No adjustment</option><option value="discount">Discount</option><option value="extra">Additional charge</option></select></div>
+            <div class="field"><label for="adjustmentMode">Adjustment mode</label><select id="adjustmentMode"><option value="percent">Percentage</option><option value="fixed">Fixed amount</option></select></div>
+            <div class="field full"><label for="adjustmentValue">Adjustment value</label><input id="adjustmentValue" type="number" min="0" step="0.01" value="0"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">Tax configuration</h3>
+          <div class="grid">
+            <div class="field"><label for="taxSystem">Tax system</label>
+              <select id="taxSystem"><option value="none">No tax</option><option value="india" selected>India GST (CGST + SGST / IGST)</option><option value="vat">VAT</option><option value="gst">GST</option><option value="sales">Sales tax</option><option value="custom">Custom tax</option></select></div>
+            <div class="field"><label for="taxRate">Tax rate (%)</label><input id="taxRate" type="number" min="0" max="100" step="0.01" value="18"></div>
+            <div class="field full"><label for="taxLabel">Tax name (editable)</label><input id="taxLabel" value="GST" maxlength="40" placeholder="e.g. VAT, GST, Sales Tax"></div>
+            <!-- Shown only for the United States and Canada: pick a state or province. -->
+            <div class="field full hidden" id="regionField"><label for="regionSelect" id="regionLabel">State / province</label><select id="regionSelect"></select></div>
+            <!-- Shown only when the tax system is India GST. -->
+            <div class="field india-only"><label for="indiaState">Your business state (India)</label><select id="indiaState"></select></div>
+            <div class="field india-only"><label for="clientState">Client state (India)</label><select id="clientState"></select></div>
+            <div class="field full india-only"><label for="supplyType">Supply type</label>
+              <select id="supplyType"><option value="auto">Automatic (compare the two states)</option><option value="intra">Same state (CGST + SGST)</option><option value="inter">Different state (IGST)</option></select>
+              <small class="muted" id="supplyHint"></small></div>
+          </div>
+          <div id="taxHint" class="notice mt"></div>
+          <div id="taxCountryNote" class="notice" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <div class="card mt">
+        <h3 class="card-title">Payment terms</h3>
+        <div class="grid three">
+          <div class="field"><label for="paymentTerms">Payment plan</label><select id="paymentTerms"><option>Full Payment</option><option>50% Advance / 50% Delivery</option><option>30% Advance / 40% Development / 30% Delivery</option><option>25% Advance / 50% Development / 25% Delivery</option><option>Custom</option></select></div>
+          <div class="field hidden" id="customAdvanceField"><label for="customAdvance">Custom advance (%)</label><input id="customAdvance" type="number" min="0" max="100" value="30"></div>
+          <div class="field"><label for="taxIncluded">Is tax included in the quoted price?</label><select id="taxIncluded"><option value="no">No - add tax on top</option><option value="yes">Yes - tax is already inside the price</option></select></div>
+        </div>
+      </div>
+
+      <div class="grid mt">
+        <div class="card">
+          <h3 class="card-title">Live calculation</h3>
+          <div class="summary-line"><span>Team cost</span><strong id="calcTeam">0</strong></div>
+          <div class="summary-line"><span>Other expenses</span><strong id="calcOther">0</strong></div>
+          <div class="summary-line"><span>Total project expense</span><strong id="calcBase">0</strong></div>
+          <div class="summary-line"><span>Profit</span><strong id="calcProfit">0</strong></div>
+          <div class="summary-line"><span>Discount / additional charge</span><strong id="calcAdjustment">0</strong></div>
+          <div class="summary-line"><span>Amount before tax</span><strong id="calcNet">0</strong></div>
+          <div class="summary-line"><span>Tax</span><strong id="calcTax">0</strong></div>
+          <div class="summary-line"><span>Final project price</span><strong class="big-total" id="calcFinal">0</strong></div>
+        </div>
+        <div class="card">
+          <h3 class="card-title">Budget result</h3>
+          <div class="stat-label">Client budget</div><div class="stat-value" id="calcBudget">0</div>
+          <div style="margin-top:15px" id="calcBudgetStatus" class="pill">No budget entered</div>
+          <p class="muted small" style="line-height:1.6;margin-top:14px">Near budget: the final price is above 90% of the budget but not above it. Over budget: the final price is higher than the budget.</p>
+          <div class="notice">For India GST the rate is split equally into CGST and SGST for same-state supply, or charged fully as IGST for different-state supply.</div>
+        </div>
+      </div>
+      <div class="row mt"><button type="button" class="btn" data-action="nav" data-page="report">Review and create report</button></div>
+    </section>
+
+    <!-- ===== PAGE: REPORT ===== -->
+    <section id="reportSection" class="content-section">
+      <div class="section-head"><h2>Review and final report</h2><p>Choose a report type. The PDF contains only that report.</p></div>
+      <div class="row" style="margin-bottom:18px">
+        <div class="field" style="min-width:220px"><label for="reportType">Report type</label>
+          <select id="reportType"><option value="Detailed">Detailed Report</option><option value="Summary">Summary Report</option><option value="Client">Client Report</option><option value="Internal">Internal Report</option></select></div>
+        <button type="button" class="btn teal" data-action="downloadReport" style="margin-top:20px">Download selected report PDF</button>
+        <button type="button" class="btn secondary" data-action="downloadFull" style="margin-top:20px">Download full project PDF</button>
+        <button type="button" class="btn secondary" data-action="nav" data-page="project" style="margin-top:20px">Edit project details</button>
+      </div>
+      <div class="card"><div id="reportContent" class="report-paper"></div></div>
+      <div class="notice mt"><strong>How the PDF works:</strong> press a download button. In the print window choose "Save as PDF" as the destination, then press Save.</div>
+    </section>
+
+    <div class="footer-note">EXPENOMICS is a project-estimation tool, not tax, accounting or legal advice. Tax rates depend on product or service type, region, registration, exemptions and transaction details. Verify with the tax authority or a qualified professional.</div>
+  </main>
+</div>
+
+<!-- Hidden area used only while printing a PDF -->
+<div id="printArea"></div>
+<!-- Small popup message -->
+<div id="toast" class="toast hidden"></div>
+
+<script>
+/* =====================================================================
+   PART 3 : JAVASCRIPT (the "brain" of the app)
+   ---------------------------------------------------------------------
+   Sections:
+     3.1  Small helper functions (+ input rules, filters, mandatory fields)
+     3.2  Session storage (saving data inside the browser tab)
+     3.3  Country, currency and tax data (all countries)
+     3.4  Login and sign up
+     3.5  Country selection and tax presets
+     3.6  Pages and menu
+     3.7  Team members
+     3.8  Expenses
+     3.9  Calculation (the money maths)
+     3.10 Validation (checking what the user typed)
+     3.11 Reports and PDF
+     3.12 Company directory
+     3.13 Events (reacting to clicks and typing)
+     3.14 Start of the app
+   ===================================================================== */
+"use strict";
+
+/* ---------------------------------------------------------------------
+   3.1  SMALL HELPER FUNCTIONS
+   --------------------------------------------------------------------- */
+
+// Short way to find an element by its id.  $("clientName") = the client name box.
+const $ = (id) => document.getElementById(id);
+
+// Make text safe before putting it inside the page (stops broken layout / script injection).
+function esc(value){
+  return String(value == null ? "" : value).replace(/[&<>"']/g, ch =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
+
+// Read a number from an input box. Empty, negative or wrong text becomes 0.
+function num(id){
+  const el = $(id);
+  const v = parseFloat(el ? el.value : "");
+  return Number.isFinite(v) && v > 0 ? v : 0;
+}
+
+// Turn a number into money text using the selected currency, e.g. "Rs 1,200.00".
+function money(value){
+  const code = ($("currency") && $("currency").value) || "INR";
+  const amount = Number(value) || 0;
+  try {
+    return new Intl.NumberFormat(undefined, {style:"currency", currency:code, maximumFractionDigits:2}).format(amount);
+  } catch (error) {
+    // If the browser does not know the currency, show the code and the number.
+    return code + " " + amount.toFixed(2);
+  }
+}
+
+// Show a small popup message for about 3 seconds.
+function toast(message){
+  const box = $("toast");
+  box.textContent = message;
+  box.classList.remove("hidden");
+  clearTimeout(box._timer);
+  box._timer = setTimeout(() => box.classList.add("hidden"), 3200);
+}
+
+// Used by validation: show a message, mark the box red and put the cursor inside it.
+function fail(element, message){
+  toast(message);
+  if (element){
+    element.classList.add("invalid");
+    if (element.focus) element.focus();
+  }
+  return false; // "false" means "this check failed"
+}
+
+// Put text into an element if that element exists.
+function setText(id, text){ const el = $(id); if (el) el.textContent = text; }
+
+// Today's date as YYYY-MM-DD (used as the default expense date).
+function today(){ return new Date().toISOString().slice(0, 10); }
+
+/* ---- INPUT RULES ----------------------------------------------------
+   NAME_RE  : a name must start with a letter. After that it may contain letters
+              (any language), accent / vowel marks, spaces, dot, apostrophe, hyphen.
+              Digits and other symbols are NOT allowed.
+   EMAIL_RE : a simple valid email shape  name@domain.ext
+   PHONE_RE : 5 to 15 digits only (the country code is a separate box).
+   MONEY_RE : a plain number such as 50000 or 50000.50
+   PASSWORD_LENGTH : the password must be EXACTLY this many characters.
+   --------------------------------------------------------------------- */
+const NAME_RE  = /^\p{L}[\p{L}\p{M}\s.'-]*$/u;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_RE = /^\d{5,15}$/;
+const MONEY_RE = /^\d+(\.\d{1,2})?$/;
+const PASSWORD_LENGTH = 8;
+
+// Strong password: EXACTLY 8 characters, at least one letter (any language), one number,
+// one symbol (any unique symbol like @ # $ ! % ^ & *), and no spaces.
+function isStrongPassword(p){
+  return p.length === PASSWORD_LENGTH && /\p{L}/u.test(p) && /\d/.test(p) && /[^\p{L}\d\s]/u.test(p) && !/\s/.test(p);
+}
+
+// While the user types or pastes, wrong characters are removed at once.
+// A box opts in with  data-filter="letters" | "digits" | "decimal".
+function sanitize(el){
+  const f = el.dataset && el.dataset.filter;
+  if (!f) return;
+  let v = el.value;
+  if (f === "letters") v = v.replace(/[^\p{L}\p{M}\s.'-]/gu, "");
+  if (f === "digits")  v = v.replace(/\D/g, "");
+  if (f === "decimal"){
+    v = v.replace(/[^0-9.]/g, "");
+    const parts = v.split(".");
+    if (parts.length > 1) v = parts[0] + "." + parts.slice(1).join("").slice(0, 2); // one dot, 2 decimals
+  }
+  if (v !== el.value) el.value = v;
+}
+
+/* ---- MANDATORY FIELDS -------------------------------------------------
+   Every id in REQUIRED_IDS gets a red * after its label and cannot be empty.
+   To make another box mandatory, just add its id to this list.
+   --------------------------------------------------------------------- */
+const REQUIRED_IDS = [
+  // sign up and login
+  "signupName","signupEmail","signupPassword","signupConfirm","loginEmail","loginPassword",
+  // client and project
+  "clientName","countrySearch","clientEmail","clientContact","projectName","budget","startDate","endDate",
+  // project manager
+  "managerName","managerContact"
+];
+
+// The label text of a box without the bracket part, e.g. "Client name (letters only)" -> "Client name".
+function labelText(id){
+  const l = document.querySelector('label[for="' + id + '"]');
+  return l ? l.textContent.replace(/\(.*?\)/g, "").trim() : id;
+}
+
+// Add the red star to every mandatory label.
+function markRequired(){
+  REQUIRED_IDS.forEach(id => {
+    const l = document.querySelector('label[for="' + id + '"]');
+    if (l) l.classList.add("req");
+  });
+}
+
+// Check that every listed box is filled. Shows a message for the first empty one.
+function checkRequired(ids){
+  for (const id of ids){
+    const el = $(id);
+    if (!el || !String(el.value).trim()) return fail(el, labelText(id) + " is required.");
+  }
+  return true;
+}
+
+/* ---------------------------------------------------------------------
+   3.2  SESSION STORAGE
+   Data is kept in sessionStorage = it lives only while this tab is open.
+   If the browser blocks storage, a plain in-memory object is used instead.
+   --------------------------------------------------------------------- */
+function makeStore(){
+  const memory = {};
+  try {
+    const s = window.sessionStorage;
+    s.setItem("__test__", "1"); s.removeItem("__test__");
+    return s;
+  } catch (error) { /* storage blocked: use memory below */ }
+  return {
+    getItem: k => (k in memory ? memory[k] : null),
+    setItem: (k, v) => { memory[k] = String(v); },
+    removeItem: k => { delete memory[k]; }
+  };
+}
+const store = makeStore();
+
+// The names (keys) under which things are saved.
+const KEY = {
+  account:   "expenomics_account",    // the signed-up user (name, email, password hash)
+  auth:      "expenomics_logged_in",  // "1" while the user is logged in
+  work:      "expenomics_workspace",  // the project being edited (fields, team, expenses)
+  counter:   "expenomics_id_counter", // last project number used
+  companies: "expenomics_companies",  // saved companies shown in the directory
+  theme:     "expenomics_theme"       // light or dark
+};
+
+function readJSON(key, fallback){
+  try { const raw = store.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+  catch (error) { return fallback; }
+}
+function writeJSON(key, value){
+  try { store.setItem(key, JSON.stringify(value)); } catch (error) { /* ignore */ }
+}
+
+// The three big pieces of data of the current project.
+let currentUser = null; // {name, email}
+let team = [];          // list of team members
+let expenses = [];      // list of expenses
+let DEFAULTS = {};      // starting value of every box (used by "New project")
+
+// Ids of all boxes that belong to the app (not the login screen).
+function appFields(){ return [...document.querySelectorAll("#appScreen input[id], #appScreen select[id], #appScreen textarea[id]")]; }
+
+// Save the whole current project into the session.
+function saveWork(){
+  const fields = {};
+  appFields().forEach(el => { fields[el.id] = el.value; });
+  writeJSON(KEY.work, {
+    fields: fields,
+    team: team.map(m => { const copy = Object.assign({}, m); delete copy.editing; return copy; }),
+    expenses: expenses
+  });
+}
+
+// Put saved values back into the boxes.
+function applyWork(work){
+  const fields = (work && work.fields) || {};
+  Object.keys(fields).forEach(id => { const el = $(id); if (el) el.value = fields[id]; });
+  team = ((work && work.team) || []).map(m => Object.assign({}, m, {editing:false}));
+  expenses = (work && work.expenses) || [];
+  // The state/province list depends on the country, so rebuild it and select the saved value.
+  buildRegionOptions($("country").value, fields.regionSelect);
+  $("countrySearch").value = countryName($("country").value);
+}
+
+/* ---------------------------------------------------------------------
+   3.3  COUNTRY, CURRENCY AND TAX DATA  (all countries)
+   One line per country:  CODE | Name | Currency | Phone code | Tax type | Rate | Tax name (optional)
+   Tax type:  V = VAT   G = GST   S = Sales tax   N = no general tax   C = custom   I = India GST
+   Rate 0 with type C means "no simple national rate, please enter it yourself".
+   These are STARTER presets only. Confirm every rate with the tax authority.
+   --------------------------------------------------------------------- */
+const COUNTRY_DATA = `
+AF|Afghanistan|AFN|+93|C|0
+AX|Aland Islands|EUR|+358|V|25.5
+AL|Albania|ALL|+355|V|20
+DZ|Algeria|DZD|+213|V|19
+AS|American Samoa|USD|+1-684|N|0
+AD|Andorra|EUR|+376|V|4.5|IGI
+AO|Angola|AOA|+244|V|14
+AI|Anguilla|XCD|+1-264|C|0
+AQ|Antarctica|USD|+672|N|0
+AG|Antigua and Barbuda|XCD|+1-268|S|17|ABST
+AR|Argentina|ARS|+54|V|21|IVA
+AM|Armenia|AMD|+374|V|20
+AW|Aruba|AWG|+297|S|6|BBO / BAZV
+AU|Australia|AUD|+61|G|10
+AT|Austria|EUR|+43|V|20
+AZ|Azerbaijan|AZN|+994|V|18
+BS|Bahamas|BSD|+1-242|V|10
+BH|Bahrain|BHD|+973|V|10
+BD|Bangladesh|BDT|+880|V|15
+BB|Barbados|BBD|+1-246|V|17.5
+BY|Belarus|BYN|+375|V|20
+BE|Belgium|EUR|+32|V|21
+BZ|Belize|BZD|+501|S|12.5|General Sales Tax
+BJ|Benin|XOF|+229|V|18
+BM|Bermuda|BMD|+1-441|N|0
+BT|Bhutan|BTN|+975|S|7|Bhutan Sales Tax
+BO|Bolivia|BOB|+591|V|13|IVA
+BQ|Bonaire, Sint Eustatius and Saba|USD|+599|C|0
+BA|Bosnia and Herzegovina|BAM|+387|V|17
+BW|Botswana|BWP|+267|V|14
+BV|Bouvet Island|NOK|+47|N|0
+BR|Brazil|BRL|+55|C|0|ICMS / ISS / PIS / COFINS (configure)
+IO|British Indian Ocean Territory|USD|+246|N|0
+BN|Brunei|BND|+673|N|0
+BG|Bulgaria|EUR|+359|V|20
+BF|Burkina Faso|XOF|+226|V|18
+BI|Burundi|BIF|+257|V|18
+CV|Cabo Verde|CVE|+238|V|15
+KH|Cambodia|KHR|+855|V|10
+CM|Cameroon|XAF|+237|V|19.25
+CA|Canada|CAD|+1|G|5|GST
+KY|Cayman Islands|KYD|+1-345|N|0
+CF|Central African Republic|XAF|+236|V|19
+TD|Chad|XAF|+235|V|18
+CL|Chile|CLP|+56|V|19|IVA
+CN|China|CNY|+86|V|13
+CX|Christmas Island|AUD|+61|C|0
+CC|Cocos (Keeling) Islands|AUD|+61|C|0
+CO|Colombia|COP|+57|V|19|IVA
+KM|Comoros|KMF|+269|V|10
+CG|Congo|XAF|+242|V|18
+CD|Congo (Democratic Republic)|CDF|+243|V|16
+CK|Cook Islands|NZD|+682|V|15
+CR|Costa Rica|CRC|+506|V|13|IVA
+CI|Cote d'Ivoire|XOF|+225|V|18
+HR|Croatia|EUR|+385|V|25
+CU|Cuba|CUP|+53|C|0
+CW|Curacao|ANG|+599|S|6|OB Turnover Tax
+CY|Cyprus|EUR|+357|V|19
+CZ|Czechia|CZK|+420|V|21
+DK|Denmark|DKK|+45|V|25|Moms
+DJ|Djibouti|DJF|+253|V|10
+DM|Dominica|XCD|+1-767|V|15
+DO|Dominican Republic|DOP|+1-809|V|18|ITBIS
+EC|Ecuador|USD|+593|V|15|IVA
+EG|Egypt|EGP|+20|V|14
+SV|El Salvador|USD|+503|V|13|IVA
+GQ|Equatorial Guinea|XAF|+240|V|15
+ER|Eritrea|ERN|+291|C|0
+EE|Estonia|EUR|+372|V|24
+SZ|Eswatini|SZL|+268|V|15
+ET|Ethiopia|ETB|+251|V|15
+FK|Falkland Islands|FKP|+500|N|0
+FO|Faroe Islands|DKK|+298|V|25
+FJ|Fiji|FJD|+679|V|15
+FI|Finland|EUR|+358|V|25.5
+FR|France|EUR|+33|V|20|TVA
+GF|French Guiana|EUR|+594|N|0
+PF|French Polynesia|XPF|+689|V|16|TVA
+TF|French Southern Territories|EUR|+262|N|0
+GA|Gabon|XAF|+241|V|18
+GM|Gambia|GMD|+220|V|15
+GE|Georgia|GEL|+995|V|18
+DE|Germany|EUR|+49|V|19|MwSt (VAT)
+GH|Ghana|GHS|+233|V|15
+GI|Gibraltar|GIP|+350|N|0
+GR|Greece|EUR|+30|V|24
+GL|Greenland|DKK|+299|N|0
+GD|Grenada|XCD|+1-473|V|15
+GP|Guadeloupe|EUR|+590|V|8.5
+GU|Guam|USD|+1-671|S|4|Gross Receipts Tax
+GT|Guatemala|GTQ|+502|V|12|IVA
+GG|Guernsey|GBP|+44-1481|N|0
+GN|Guinea|GNF|+224|V|18
+GW|Guinea-Bissau|XOF|+245|V|17
+GY|Guyana|GYD|+592|V|14
+HT|Haiti|HTG|+509|S|10|TCA
+HM|Heard Island and McDonald Islands|AUD|+672|N|0
+VA|Holy See (Vatican City)|EUR|+39|N|0
+HN|Honduras|HNL|+504|S|15|ISV
+HK|Hong Kong|HKD|+852|N|0
+HU|Hungary|HUF|+36|V|27
+IS|Iceland|ISK|+354|V|24
+IN|India|INR|+91|I|18|GST
+ID|Indonesia|IDR|+62|V|11|PPN
+IR|Iran|IRR|+98|V|10
+IQ|Iraq|IQD|+964|C|0
+IE|Ireland|EUR|+353|V|23
+IM|Isle of Man|GBP|+44-1624|V|20
+IL|Israel|ILS|+972|V|18
+IT|Italy|EUR|+39|V|22|IVA
+JM|Jamaica|JMD|+1-876|S|15|GCT
+JP|Japan|JPY|+81|V|10|Consumption Tax
+JE|Jersey|GBP|+44-1534|G|5
+JO|Jordan|JOD|+962|S|16|General Sales Tax
+KZ|Kazakhstan|KZT|+7|V|16
+KE|Kenya|KES|+254|V|16
+KI|Kiribati|AUD|+686|V|12.5
+KP|North Korea|KPW|+850|C|0
+KR|South Korea|KRW|+82|V|10
+KW|Kuwait|KWD|+965|N|0
+KG|Kyrgyzstan|KGS|+996|V|12
+LA|Laos|LAK|+856|V|10
+LV|Latvia|EUR|+371|V|21
+LB|Lebanon|LBP|+961|V|11
+LS|Lesotho|LSL|+266|V|15
+LR|Liberia|LRD|+231|G|10|GST
+LY|Libya|LYD|+218|C|0
+LI|Liechtenstein|CHF|+423|V|8.1
+LT|Lithuania|EUR|+370|V|21
+LU|Luxembourg|EUR|+352|V|17
+MO|Macao|MOP|+853|N|0
+MG|Madagascar|MGA|+261|V|20
+MW|Malawi|MWK|+265|V|16.5
+MY|Malaysia|MYR|+60|S|8|Service Tax (SST)
+MV|Maldives|MVR|+960|G|8
+ML|Mali|XOF|+223|V|18
+MT|Malta|EUR|+356|V|18
+MH|Marshall Islands|USD|+692|C|0
+MQ|Martinique|EUR|+596|V|8.5
+MR|Mauritania|MRU|+222|V|16
+MU|Mauritius|MUR|+230|V|15
+YT|Mayotte|EUR|+262|N|0
+MX|Mexico|MXN|+52|V|16|IVA
+FM|Micronesia|USD|+691|C|0
+MD|Moldova|MDL|+373|V|20
+MC|Monaco|EUR|+377|V|20
+MN|Mongolia|MNT|+976|V|10
+ME|Montenegro|EUR|+382|V|21
+MS|Montserrat|XCD|+1-664|N|0
+MA|Morocco|MAD|+212|V|20|TVA
+MZ|Mozambique|MZN|+258|V|16
+MM|Myanmar|MMK|+95|S|5|Commercial Tax
+NA|Namibia|NAD|+264|V|15
+NR|Nauru|AUD|+674|N|0
+NP|Nepal|NPR|+977|V|13
+NL|Netherlands|EUR|+31|V|21|BTW (VAT)
+NC|New Caledonia|XPF|+687|C|0
+NZ|New Zealand|NZD|+64|G|15
+NI|Nicaragua|NIO|+505|V|15|IVA
+NE|Niger|XOF|+227|V|19
+NG|Nigeria|NGN|+234|V|7.5
+NU|Niue|NZD|+683|C|0
+NF|Norfolk Island|AUD|+672|C|0
+MK|North Macedonia|MKD|+389|V|18
+MP|Northern Mariana Islands|USD|+1-670|C|0
+NO|Norway|NOK|+47|V|25|MVA (VAT)
+OM|Oman|OMR|+968|V|5
+PK|Pakistan|PKR|+92|S|18|Sales Tax
+PW|Palau|USD|+680|C|0
+PS|Palestine|ILS|+970|V|16
+PA|Panama|PAB|+507|V|7|ITBMS
+PG|Papua New Guinea|PGK|+675|G|10
+PY|Paraguay|PYG|+595|V|10|IVA
+PE|Peru|PEN|+51|V|18|IGV
+PH|Philippines|PHP|+63|V|12
+PN|Pitcairn Islands|NZD|+64|N|0
+PL|Poland|PLN|+48|V|23
+PT|Portugal|EUR|+351|V|23
+PR|Puerto Rico|USD|+1-787|S|11.5|Sales and Use Tax
+QA|Qatar|QAR|+974|N|0
+RE|Reunion|EUR|+262|V|8.5
+RO|Romania|RON|+40|V|21
+RU|Russia|RUB|+7|V|22
+RW|Rwanda|RWF|+250|V|18
+BL|Saint Barthelemy|EUR|+590|N|0
+SH|Saint Helena|SHP|+290|N|0
+KN|Saint Kitts and Nevis|XCD|+1-869|V|17
+LC|Saint Lucia|XCD|+1-758|V|12.5
+MF|Saint Martin|EUR|+590|N|0
+PM|Saint Pierre and Miquelon|EUR|+508|C|0
+VC|Saint Vincent and the Grenadines|XCD|+1-784|V|16
+WS|Samoa|WST|+685|G|15
+SM|San Marino|EUR|+378|V|17
+ST|Sao Tome and Principe|STN|+239|V|15
+SA|Saudi Arabia|SAR|+966|V|15
+SN|Senegal|XOF|+221|V|18
+RS|Serbia|RSD|+381|V|20
+SC|Seychelles|SCR|+248|V|15
+SL|Sierra Leone|SLE|+232|G|15
+SG|Singapore|SGD|+65|G|9
+SX|Sint Maarten|ANG|+1-721|C|0
+SK|Slovakia|EUR|+421|V|23
+SI|Slovenia|EUR|+386|V|22
+SB|Solomon Islands|SBD|+677|C|0
+SO|Somalia|SOS|+252|C|0
+ZA|South Africa|ZAR|+27|V|15
+GS|South Georgia and South Sandwich Islands|GBP|+500|N|0
+SS|South Sudan|SSP|+211|C|0
+ES|Spain|EUR|+34|V|21|IVA
+LK|Sri Lanka|LKR|+94|V|18
+SD|Sudan|SDG|+249|V|17
+SR|Suriname|SRD|+597|V|10
+SJ|Svalbard and Jan Mayen|NOK|+47|N|0
+SE|Sweden|SEK|+46|V|25|Moms (VAT)
+CH|Switzerland|CHF|+41|V|8.1|MWST / TVA
+SY|Syria|SYP|+963|C|0
+TW|Taiwan|TWD|+886|V|5
+TJ|Tajikistan|TJS|+992|V|14
+TZ|Tanzania|TZS|+255|V|18
+TH|Thailand|THB|+66|V|7
+TL|Timor-Leste|USD|+670|C|0
+TG|Togo|XOF|+228|V|18
+TK|Tokelau|NZD|+690|N|0
+TO|Tonga|TOP|+676|S|15|Consumption Tax
+TT|Trinidad and Tobago|TTD|+1-868|V|12.5
+TN|Tunisia|TND|+216|V|19
+TR|Turkey|TRY|+90|V|20|KDV (VAT)
+TM|Turkmenistan|TMT|+993|V|15
+TC|Turks and Caicos Islands|USD|+1-649|V|12
+TV|Tuvalu|AUD|+688|N|0
+UG|Uganda|UGX|+256|V|18
+UA|Ukraine|UAH|+380|V|20
+AE|United Arab Emirates|AED|+971|V|5
+GB|United Kingdom|GBP|+44|V|20
+US|United States|USD|+1|S|0|Sales Tax
+UM|United States Minor Outlying Islands|USD|+1|N|0
+UY|Uruguay|UYU|+598|V|22|IVA
+UZ|Uzbekistan|UZS|+998|V|12
+VU|Vanuatu|VUV|+678|V|15
+VE|Venezuela|VES|+58|V|16|IVA
+VN|Vietnam|VND|+84|V|10
+VG|British Virgin Islands|USD|+1-284|N|0
+VI|U.S. Virgin Islands|USD|+1-340|S|4|Gross Receipts Tax
+WF|Wallis and Futuna|XPF|+681|N|0
+EH|Western Sahara|MAD|+212|C|0
+YE|Yemen|YER|+967|C|0
+ZM|Zambia|ZMW|+260|V|16
+ZW|Zimbabwe|ZWG|+263|V|15.5
+`;
+
+// Turn the text above into a list of country objects, sorted A to Z.
+const COUNTRIES = COUNTRY_DATA.trim().split("\n").map(line => {
+  const p = line.trim().split("|");
+  return {code:p[0], name:p[1], currency:p[2], dial:p[3], type:p[4], rate:Number(p[5]) || 0, label:p[6] || ""};
+}).sort((a, b) => a.name.localeCompare(b.name));
+
+// Quick lookups: by code ("IN") and by lower-case name ("india").
+const COUNTRY_BY_CODE = {};
+const COUNTRY_BY_NAME = {};
+COUNTRIES.forEach(c => { COUNTRY_BY_CODE[c.code] = c; COUNTRY_BY_NAME[c.name.toLowerCase()] = c; });
+
+function countryName(code){ return COUNTRY_BY_CODE[code] ? COUNTRY_BY_CODE[code].name : "India"; }
+
+// Tax type letter -> value used by the "Tax system" drop-down, and default tax names.
+const TYPE_TO_SYSTEM = {V:"vat", G:"gst", S:"sales", N:"none", C:"custom", I:"india"};
+const DEFAULT_LABEL  = {vat:"VAT", gst:"GST", sales:"Sales Tax", none:"No tax", custom:"Custom Tax", india:"GST"};
+
+// US states (state-level base sales tax). City and county tax is NOT included.
+const US_STATES = "Alabama:4,Alaska:0,Arizona:5.6,Arkansas:6.5,California:7.25,Colorado:2.9,Connecticut:6.35,Delaware:0,District of Columbia:6,Florida:6,Georgia:4,Hawaii:4,Idaho:6,Illinois:6.25,Indiana:7,Iowa:6,Kansas:6.5,Kentucky:6,Louisiana:5,Maine:5.5,Maryland:6,Massachusetts:6.25,Michigan:6,Minnesota:6.875,Mississippi:7,Missouri:4.225,Montana:0,Nebraska:5.5,Nevada:6.85,New Hampshire:0,New Jersey:6.625,New Mexico:4.875,New York:4,North Carolina:4.75,North Dakota:5,Ohio:5.75,Oklahoma:4.5,Oregon:0,Pennsylvania:6,Rhode Island:7,South Carolina:6,South Dakota:4.2,Tennessee:7,Texas:6.25,Utah:6.1,Vermont:6,Virginia:5.3,Washington:6.5,West Virginia:6,Wisconsin:5,Wyoming:4";
+// Canadian provinces: combined GST + HST / PST / QST.
+const CA_PROVINCES = "Alberta:5,British Columbia:12,Manitoba:12,New Brunswick:15,Newfoundland and Labrador:15,Northwest Territories:5,Nova Scotia:14,Nunavut:5,Ontario:13,Prince Edward Island:15,Quebec:14.975,Saskatchewan:11,Yukon:5";
+
+function parseRegions(text){ return text.split(",").map(item => { const i = item.lastIndexOf(":"); return {name:item.slice(0, i), rate:Number(item.slice(i + 1))}; }); }
+const REGIONS = {US: parseRegions(US_STATES), CA: parseRegions(CA_PROVINCES)};
+
+// Indian states and union territories (for CGST / SGST / IGST).
+const INDIA_STATES = ["West Bengal","Andaman and Nicobar Islands","Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chandigarh","Chhattisgarh","Dadra and Nagar Haveli and Daman and Diu","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh","Jammu and Kashmir","Jharkhand","Karnataka","Kerala","Ladakh","Lakshadweep","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Puducherry","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand"];
+
+// Lists used in the team and expense tables.
+const ROLES = ["Project Manager","Business Analyst","UI/UX Designer","Graphic Designer","Frontend Developer","Backend Developer","Full Stack Developer","Mobile Developer","Database Developer","DevOps Engineer","QA Tester","Content Writer","SEO Specialist","Digital Marketer","Other"];
+const EMPLOYMENT = ["Full Time","Part Time","Freelancer","Contract","Outsourced"];
+const PAYMENT = ["Hourly","Daily","Weekly","Monthly","Fixed Project Fee"];
+const EXPERIENCE = ["Junior","Mid-Level","Senior","Expert"];
+const EXP_CATEGORY = ["Development","Marketing","Other"];
+const EXP_TYPE = ["Fixed","Variable","One Time","Recurring"];
+const EXP_STATUS = ["Paid","Pending","Partially Paid"];
+const EXP_METHOD = ["Cash","Bank Transfer","Card","UPI","Online Payment","Other"];
+
+// Build the long drop-down lists once when the app starts.
+function buildLists(){
+  // Currency list: every currency the browser knows, plus every currency used by the countries above.
+  let codes = [];
+  try { codes = Intl.supportedValuesOf("currency"); } catch (error) { codes = []; }
+  COUNTRIES.forEach(c => { if (!codes.includes(c.currency)) codes.push(c.currency); });
+  codes.sort();
+  let names = null;
+  try { names = new Intl.DisplayNames(["en"], {type:"currency"}); } catch (error) { names = null; }
+  $("currency").innerHTML = codes.map(code => {
+    let label = code;
+    try { if (names && names.of(code)) label = code + " - " + names.of(code); } catch (error) { /* keep code */ }
+    return `<option value="${code}">${esc(label)}</option>`;
+  }).join("");
+
+  // Indian state drop-downs.
+  const stateOptions = INDIA_STATES.map(s => `<option>${esc(s)}</option>`).join("");
+  $("indiaState").innerHTML = stateOptions;
+  $("clientState").innerHTML = stateOptions;
+}
+
+/* ---------------------------------------------------------------------
+   3.4  LOGIN AND SIGN UP
+   --------------------------------------------------------------------- */
+function showSignup(){ $("signupBox").classList.remove("hidden"); $("loginBox").classList.add("hidden"); }
+function showLogin(){  $("loginBox").classList.remove("hidden"); $("signupBox").classList.add("hidden"); }
+
+// Show or hide the typed password (the Show / Hide button).
+function togglePassword(fieldId, button){
+  const field = $(fieldId);
+  const hidden = field.type === "password";
+  field.type = hidden ? "text" : "password";
+  button.textContent = hidden ? "Hide" : "Show";
+}
+
+// Live password length message under a password box.
+// Works for sign up, confirm AND login. Shows 3/8 ... 8/8 while typing.
+// Red until the length is exactly 8, green when it is 8.
+function updatePasswordCount(inputId, counterId){
+  const n = $(inputId).value.length;
+  const box = $(counterId);
+  if (n === 0){ box.textContent = ""; return; }
+  box.textContent = n < PASSWORD_LENGTH
+    ? "Password must be exactly " + PASSWORD_LENGTH + " characters (" + n + "/" + PASSWORD_LENGTH + ")"
+    : "Length OK (" + n + "/" + PASSWORD_LENGTH + ")";
+  box.style.color = n === PASSWORD_LENGTH ? "var(--accent)" : "var(--danger)";
+}
+
+// The password is never stored as plain text when the browser supports SHA-256.
+async function hashPassword(password){
+  try {
+    if (window.crypto && window.crypto.subtle){
+      const bytes = new TextEncoder().encode(password);
+      const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+      return "sha256:" + Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+  } catch (error) { /* fall through */ }
+  return "plain:" + password; // old browsers only
+}
+
+async function createAccount(){
+  // 1. every box must be filled
+  if (!checkRequired(["signupName","signupEmail","signupPassword","signupConfirm"])) return;
+
+  const name = $("signupName").value.trim();
+  const email = $("signupEmail").value.trim().toLowerCase();
+  const password = $("signupPassword").value;
+  const confirm = $("signupConfirm").value;
+
+  // 2. every box must be correct
+  if (!NAME_RE.test(name) || name.length < 2) return fail($("signupName"), "Name must contain letters only (at least 2 letters).");
+  if (!EMAIL_RE.test(email)) return fail($("signupEmail"), "Please enter a valid email address.");
+
+  // Password: first the exact length (so the user sees "must be exactly 8"), then the content.
+  if (password.length !== PASSWORD_LENGTH)
+    return fail($("signupPassword"), "Password must be exactly " + PASSWORD_LENGTH + " characters. You typed " + password.length + ".");
+  if (!isStrongPassword(password))
+    return fail($("signupPassword"), "Password needs a letter, a number and a symbol (example: Abc@1234). No spaces.");
+  if (confirm.length !== PASSWORD_LENGTH)
+    return fail($("signupConfirm"), "Confirm password must also be exactly " + PASSWORD_LENGTH + " characters.");
+  if (password !== confirm) return fail($("signupConfirm"), "Passwords do not match.");
+
+  // Only one account lives in a tab session. Ask before replacing it.
+  if (store.getItem(KEY.account) && !window.confirm("An account already exists in this tab. Creating a new one will erase the old account and its saved projects. Continue?")) return;
+  store.removeItem(KEY.work); store.removeItem(KEY.companies); store.removeItem(KEY.counter);
+
+  writeJSON(KEY.account, {name:name, email:email, hash: await hashPassword(password)});
+  store.setItem(KEY.auth, "1");
+  currentUser = {name:name, email:email};
+  team = []; expenses = [];
+  openApp(true);
+  toast("Account created. Welcome to EXPENOMICS.");
+}
+
+async function loginAccount(){
+  if (!checkRequired(["loginEmail","loginPassword"])) return;
+
+  const email = $("loginEmail").value.trim().toLowerCase();
+  const password = $("loginPassword").value;
+
+  // Same rules as sign up: exactly 8 characters, then letter + number + symbol.
+  if (password.length !== PASSWORD_LENGTH)
+    return fail($("loginPassword"), "Password must be exactly " + PASSWORD_LENGTH + " characters. You typed " + password.length + ".");
+  if (!isStrongPassword(password))
+    return fail($("loginPassword"), "Password needs a letter, a number and a symbol (example: Abc@1234). No spaces.");
+
+  const account = readJSON(KEY.account, null);
+  if (!account) { toast("No account found in this tab. Please create one first."); showSignup(); return; }
+
+  // Hash the typed password the same way as when the account was made, then compare.
+  const typed = account.hash.startsWith("plain:") ? "plain:" + password : await hashPassword(password);
+  if (account.email !== email || account.hash !== typed) return fail($("loginPassword"), "Incorrect email or password.");
+
+  store.setItem(KEY.auth, "1");
+  currentUser = {name:account.name, email:account.email};
+  $("loginPassword").value = "";
+  $("loginPwCount").textContent = "";
+  openApp(false);
+  toast("Login successful. Welcome back.");
+}
+
+function logout(){
+  store.removeItem(KEY.auth);   // keep the account and saved data, just log out
+  currentUser = null;
+  $("loginPassword").value = "";
+  $("loginPwCount").textContent = "";
+  $("appScreen").classList.add("hidden");
+  $("authScreen").classList.remove("hidden");
+  showLogin();
+  toast("Logged out.");
+}
+
+// Show the app. "fresh" = true for a brand new account (start with empty project).
+function openApp(fresh){
+  $("authScreen").classList.add("hidden");
+  $("appScreen").classList.remove("hidden");
+  setText("userPill", currentUser ? currentUser.name : "Signed in");
+  const work = fresh ? null : readJSON(KEY.work, null);
+  resetFields();                       // start from default values
+  if (work) applyWork(work); else applyCountry("IN");
+  if (!$("projectId").value) $("projectId").value = nextProjectId();
+  toggleTaxFields();
+  renderTeam(); renderExpenses(); renderCompanies();
+  showPage("dashboard");
+  saveWork();
+}
+
+/* ---------------------------------------------------------------------
+   Project ID: EXP-0001, EXP-0002 ... always in order.
+   --------------------------------------------------------------------- */
+function nextProjectId(){
+  const next = (Number(store.getItem(KEY.counter)) || 0) + 1;
+  store.setItem(KEY.counter, String(next));
+  return "EXP-" + String(next).padStart(4, "0");
+}
+
+/* ---------------------------------------------------------------------
+   Theme (light / dark)
+   --------------------------------------------------------------------- */
+function applyTheme(theme){
+  document.body.classList.toggle("dark", theme === "dark");
+  setText("themeButton", theme === "dark" ? "Light mode" : "Dark mode");
+  store.setItem(KEY.theme, theme);
+}
+function toggleTheme(){ applyTheme(document.body.classList.contains("dark") ? "light" : "dark"); }
+
+/* ---------------------------------------------------------------------
+   3.5  COUNTRY SELECTION AND TAX PRESETS
+   When a country is chosen we set: currency, phone code, tax system, rate and name.
+   --------------------------------------------------------------------- */
+function applyCountry(code){
+  const c = COUNTRY_BY_CODE[code];
+  if (!c) return;
+  $("country").value = code;
+  $("countrySearch").value = c.name;
+  $("currency").value = c.currency;
+  $("clientPhoneCode").value = c.dial;          // phone code follows the country automatically
+
+  const system = TYPE_TO_SYSTEM[c.type] || "custom";
+  $("taxSystem").value = system;
+  $("taxRate").value = c.rate;
+  $("taxLabel").value = c.label || DEFAULT_LABEL[system];
+
+  buildRegionOptions(code, "");
+  toggleTaxFields();
+
+  // A short explanation under the tax box, written for this country.
+  let note = `${c.name}: starter preset is ${c.label || DEFAULT_LABEL[system]} at ${c.rate}%.`;
+  if (c.type === "C" && c.rate === 0) note += " This country has no simple single national rate in the presets, so please enter the correct rate yourself.";
+  if (c.type === "N") note += " No general sales tax is set for this country. Choose a tax system manually if one applies.";
+  if (code === "US") note += " Choose a state to fill its base rate. County and city taxes are not included; add them to the rate.";
+  if (code === "CA") note += " Choose a province to fill the combined GST/HST/PST/QST rate.";
+  if (code === "BR") note += " Brazil has several taxes (ICMS, ISS, PIS, COFINS). Enter the combined rate that applies.";
+  setText("taxCountryNote", note + " Always confirm with the official tax authority.");
+}
+
+/* Country drop-down list.
+   all = true  : show every country (when the box is clicked)
+   all = false : show only the countries that START with what was typed
+                 (typing "I" shows India, Indonesia, Iran, Iraq, Ireland ...). */
+function showCountryList(all){
+  const q = all ? "" : $("countrySearch").value.trim().toLowerCase();
+  const list = COUNTRIES.filter(c => c.name.toLowerCase().startsWith(q));
+  $("countryList").innerHTML = list.length
+    ? list.map(c => `<div class="country-item" data-code="${c.code}">${esc(c.name)}</div>`).join("")
+    : '<div class="country-item empty">No country found</div>';
+  $("countryList").classList.remove("hidden");
+}
+function hideCountryList(){ $("countryList").classList.add("hidden"); }
+
+// Fill the state / province drop-down (only for the US and Canada).
+function buildRegionOptions(code, savedValue){
+  const list = REGIONS[code];
+  const field = $("regionField");
+  if (!list){ field.classList.add("hidden"); $("regionSelect").innerHTML = ""; return; }
+  setText("regionLabel", code === "US" ? "US state (state-level base rate)" : "Canadian province or territory (combined rate)");
+  $("regionSelect").innerHTML = '<option value="">Select...</option>' +
+    list.map(r => `<option value="${esc(r.name)}">${esc(r.name)} (${r.rate}%)</option>`).join("");
+  if (savedValue) $("regionSelect").value = savedValue;
+  field.classList.remove("hidden");
+}
+
+// When a state / province is chosen, copy its rate into the tax rate box.
+function applyRegion(){
+  const code = $("country").value;
+  const region = (REGIONS[code] || []).find(r => r.name === $("regionSelect").value);
+  if (!region) return;
+  $("taxRate").value = region.rate;
+  $("taxSystem").value = code === "US" ? "sales" : "gst";
+  $("taxLabel").value = code === "US" ? "Sales Tax (" + region.name + ")" : "GST / HST / PST / QST (" + region.name + ")";
+  toggleTaxFields();
+}
+
+// Show only the tax boxes that make sense for the chosen tax system.
+function toggleTaxFields(){
+  const system = $("taxSystem").value;
+  document.querySelectorAll(".india-only").forEach(el => el.classList.toggle("hidden", system !== "india"));
+  $("customAdvanceField").classList.toggle("hidden", $("paymentTerms").value !== "Custom");
+  $("otherProjectTypeField").classList.toggle("hidden", $("projectType").value !== "Other");
+  const hints = {
+    none:  "No tax will be added to the price.",
+    india: "India GST: for same-state supply the rate is split equally into CGST and SGST. For different-state supply the full rate is IGST.",
+    vat:   "VAT is calculated with the rate you enter.",
+    gst:   "GST is calculated with the rate you enter.",
+    sales: "Sales tax can differ by state, county, city and product. Enter the combined rate that applies.",
+    custom:"Enter the tax name and the rate that applies to this transaction."
+  };
+  setText("taxHint", hints[system] || "");
+}
+
+// For India: decide if the sale is inside one state (intra) or between states (inter).
+function indiaSupply(){
+  const chosen = $("supplyType").value;
+  if (chosen !== "auto") return chosen;
+  return $("indiaState").value === $("clientState").value ? "intra" : "inter";
+}
+
+/* ---------------------------------------------------------------------
+   3.6  PAGES AND MENU
+   --------------------------------------------------------------------- */
+const PAGE_TITLES = {dashboard:"Dashboard", project:"Client and Project", companies:"Company Directory",
+  team:"Team and Manager", expenses:"Expenses", calculation:"Financial Calculation", report:"Review and Report"};
+
+function showPage(page){
+  const target = $(page + "Section");
+  if (!target) return;
+  document.querySelectorAll(".content-section").forEach(s => s.classList.remove("active"));
+  target.classList.add("active");
+  document.querySelectorAll(".nav-btn[data-page]").forEach(b => b.classList.toggle("active", b.dataset.page === page));
+  setText("pageTitle", PAGE_TITLES[page] || "EXPENOMICS");
+  $("sidebar").classList.remove("open");
+  window.scrollTo({top:0, behavior:"smooth"});
+  updateAll();
+}
+
+/* ---------------------------------------------------------------------
+   3.7  TEAM MEMBERS
+   Each member is an object. "editing: true" means the row is unlocked.
+   --------------------------------------------------------------------- */
+function optionsHtml(list, selected){
+  return list.map(v => `<option ${v === selected ? "selected" : ""}>${esc(v)}</option>`).join("");
+}
+
+function addMember(){
+  team.push({name:"", role:"Frontend Developer", employment:"Full Time", payment:"Monthly", experience:"Mid-Level", cost:"", editing:true});
+  renderTeam(); saveWork(); updateAll();
+  // put the cursor in the new name box
+  const boxes = $("teamRows").querySelectorAll('input[data-key="name"]');
+  if (boxes.length) boxes[boxes.length - 1].focus();
+}
+
+function renderTeam(){
+  if (!team.length){
+    $("teamRows").innerHTML = '<tr><td colspan="7">No team members yet. Press "Add member".</td></tr>';
+    return;
+  }
+  $("teamRows").innerHTML = team.map((m, i) => {
+    const d = m.editing ? "" : "disabled";                       // locked rows are disabled
+    const attr = `data-list="team" data-index="${i}"`;
+    return `<tr class="${m.editing ? "editing-row" : ""}">
+      <td><input class="table-input" ${attr} data-key="name" data-filter="letters" placeholder="Full name" maxlength="80" value="${esc(m.name)}" ${d}></td>
+      <td><select class="table-input" ${attr} data-key="role" ${d}>${optionsHtml(ROLES, m.role)}</select></td>
+      <td><select class="table-input" ${attr} data-key="employment" ${d}>${optionsHtml(EMPLOYMENT, m.employment)}</select></td>
+      <td><select class="table-input" ${attr} data-key="payment" ${d}>${optionsHtml(PAYMENT, m.payment)}</select></td>
+      <td><select class="table-input" ${attr} data-key="experience" ${d}>${optionsHtml(EXPERIENCE, m.experience)}</select></td>
+      <td><input class="table-input" type="number" min="0" step="0.01" ${attr} data-key="cost" placeholder="0.00" value="${esc(m.cost)}" ${d}></td>
+      <td><div class="row">
+        ${m.editing
+          ? `<button type="button" class="btn teal sm" data-action="saveMember" data-index="${i}">Save</button>`
+          : `<button type="button" class="btn secondary sm" data-action="editMember" data-index="${i}">Edit</button>`}
+        <button type="button" class="btn danger sm" data-action="removeMember" data-index="${i}">Remove</button>
+      </div></td></tr>`;
+  }).join("");
+}
+
+// Check one team row (name and cost are mandatory), then lock it.
+function validateMember(i){
+  const m = team[i];
+  const row = $("teamRows").children[i];
+  const nameBox = row.querySelector('[data-key="name"]');
+  const costBox = row.querySelector('[data-key="cost"]');
+  if (!String(m.name).trim()) return fail(nameBox, "Team member name is required.");
+  if (!NAME_RE.test(String(m.name).trim())) return fail(nameBox, "Team member name must contain letters only.");
+  if (String(m.cost).trim() === "") return fail(costBox, "Team member cost is required.");
+  if (!Number.isFinite(Number(m.cost)) || Number(m.cost) < 0) return fail(costBox, "Enter a valid cost (0 or more) for this team member.");
+  return true;
+}
+
+function saveMember(i){
+  if (!validateMember(i)) return;
+  team[i].name = String(team[i].name).trim();
+  team[i].cost = Number(team[i].cost);
+  team[i].editing = false;
+  renderTeam(); saveWork(); updateAll();
+  toast("Team member saved.");
+}
+function editMember(i){ team[i].editing = true; renderTeam(); }
+function removeMember(i){
+  if (!window.confirm("Remove this team member?")) return;
+  team.splice(i, 1);
+  renderTeam(); saveWork(); updateAll();
+}
+
+/* ---------------------------------------------------------------------
+   3.8  EXPENSES
+   Expense rows are always editable. "Save expenses" checks every row.
+   Name, date and amount are mandatory for every row.
+   --------------------------------------------------------------------- */
+function addExpense(){
+  expenses.push({name:"", category:"Development", type:"Fixed", status:"Paid", method:"Bank Transfer", date:today(), amount:""});
+  renderExpenses(); saveWork(); updateAll();
+  const boxes = $("expenseRows").querySelectorAll('input[data-key="name"]');
+  if (boxes.length) boxes[boxes.length - 1].focus();
+}
+
+function renderExpenses(){
+  if (!expenses.length){
+    $("expenseRows").innerHTML = '<tr><td colspan="8">No expenses yet. Press "Add expense".</td></tr>';
+    return;
+  }
+  $("expenseRows").innerHTML = expenses.map((e, i) => {
+    const attr = `data-list="expense" data-index="${i}"`;
+    return `<tr>
+      <td><input class="table-input" ${attr} data-key="name" data-filter="letters" placeholder="Expense name" maxlength="80" value="${esc(e.name)}"></td>
+      <td><select class="table-input" ${attr} data-key="category">${optionsHtml(EXP_CATEGORY, e.category)}</select></td>
+      <td><select class="table-input" ${attr} data-key="type">${optionsHtml(EXP_TYPE, e.type)}</select></td>
+      <td><select class="table-input" ${attr} data-key="status">${optionsHtml(EXP_STATUS, e.status)}</select></td>
+      <td><select class="table-input" ${attr} data-key="method">${optionsHtml(EXP_METHOD, e.method)}</select></td>
+      <td><input class="table-input" type="date" ${attr} data-key="date" value="${esc(e.date)}"></td>
+      <td><input class="table-input" type="number" min="0" step="0.01" ${attr} data-key="amount" placeholder="0.00" value="${esc(e.amount)}"></td>
+      <td><button type="button" class="btn danger sm" data-action="removeExpense" data-index="${i}">Remove</button></td></tr>`;
+  }).join("");
+}
+
+function removeExpense(i){
+  if (!window.confirm("Remove this expense?")) return;
+  expenses.splice(i, 1);
+  renderExpenses(); saveWork(); updateAll();
+}
+
+// Check every expense row. Returns true if all rows are fine.
+function validateExpenses(){
+  const rows = $("expenseRows").children;
+  for (let i = 0; i < expenses.length; i++){
+    const e = expenses[i];
+    const row = rows[i];
+    if (!String(e.name).trim()) return fail(row.querySelector('[data-key="name"]'), "Expense name is required.");
+    if (!NAME_RE.test(String(e.name).trim())) return fail(row.querySelector('[data-key="name"]'), "Expense name must contain letters only.");
+    if (!e.date) return fail(row.querySelector('[data-key="date"]'), "Please choose a date for every expense.");
+    if (String(e.amount).trim() === "") return fail(row.querySelector('[data-key="amount"]'), "Expense amount is required.");
+    if (!Number.isFinite(Number(e.amount)) || Number(e.amount) <= 0)
+      return fail(row.querySelector('[data-key="amount"]'), "Expense amount must be greater than zero.");
+  }
+  return true;
+}
+
+function saveExpenses(){
+  if (!validateExpenses()) return;
+  expenses.forEach(e => { e.name = String(e.name).trim(); e.amount = Number(e.amount); });
+  saveWork(); updateAll();
+  toast("All expenses checked and saved.");
+}
+
+/* ---------------------------------------------------------------------
+   3.9  CALCULATION  (the money maths)
+   Steps:
+     1. Team cost  = all team costs + manager cost
+     2. Base cost  = team cost + all expenses
+     3. Profit     = base x profit%  (or a fixed amount)
+     4. Adjustment = discount (minus) or extra charge (plus)
+     5. Tax        = on the amount after adjustment
+     6. Final      = amount before tax + tax
+   If "tax included" is chosen, the tax is taken OUT of the price instead of added.
+   --------------------------------------------------------------------- */
+function calculate(){
+  const manager = num("managerCost");
+  const teamCost = team.reduce((sum, m) => sum + (Number(m.cost) || 0), 0) + manager;
+  const sumBy = cat => expenses.filter(e => e.category === cat).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const development = sumBy("Development"), marketing = sumBy("Marketing"), other = sumBy("Other");
+  const expenseTotal = development + marketing + other;
+  const base = teamCost + expenseTotal;
+
+  // profit
+  const profit = $("profitType").value === "percent" ? base * num("profitValue") / 100 : num("profitValue");
+  const before = base + profit;
+
+  // discount or extra charge
+  let adjustment = 0;
+  const adjType = $("adjustmentType").value;
+  if (adjType !== "none"){
+    const raw = $("adjustmentMode").value === "percent" ? before * Math.min(num("adjustmentValue"), 100) / 100 : num("adjustmentValue");
+    adjustment = adjType === "discount" ? -Math.min(raw, before) : raw;
+  }
+  const afterAdjustment = Math.max(0, before + adjustment);
+
+  // tax
+  const system = $("taxSystem").value;
+  const rate = system === "none" ? 0 : Math.min(num("taxRate"), 100);
+  const included = $("taxIncluded").value === "yes";
+  const tax = included ? afterAdjustment * rate / (100 + rate) : afterAdjustment * rate / 100;
+  const net = included ? afterAdjustment - tax : afterAdjustment;
+  const finalPrice = net + tax;
+
+  // India GST split
+  let cgst = 0, sgst = 0, igst = 0, supply = "";
+  if (system === "india"){
+    supply = indiaSupply();
+    if (supply === "intra"){ cgst = tax / 2; sgst = tax / 2; } else { igst = tax; }
+  }
+
+  // budget check
+  const budget = num("budget");
+  let budgetStatus = "No budget entered", statusClass = "";
+  if (budget > 0){
+    if (finalPrice > budget){ budgetStatus = "OVER BUDGET"; statusClass = "bad"; }
+    else if (finalPrice > budget * 0.9){ budgetStatus = "NEAR BUDGET"; statusClass = "warn"; }
+    else { budgetStatus = "WITHIN BUDGET"; statusClass = "good"; }
+  }
+  return {manager, teamCost, development, marketing, other, expenseTotal, base, profit, before, adjustment,
+          net, tax, rate, cgst, sgst, igst, supply, finalPrice, budget, budgetStatus, statusClass, system};
+}
+
+// Number of days between start and end date (both days counted).
+function durationText(){
+  const a = $("startDate").value, b = $("endDate").value;
+  if (!a || !b) return "Not specified";
+  const days = Math.round((new Date(b) - new Date(a)) / 86400000) + 1;
+  return days > 0 ? days + " days" : "Please check the dates";
+}
+
+// Update every number and label on the screen.
+function updateAll(){
+  if (!$("currency").options.length) return;
+  const c = calculate();
+
+  setText("teamTotal", money(c.teamCost));
+  setText("developmentTotal", money(c.development));
+  setText("marketingTotal", money(c.marketing));
+  setText("otherTotal", money(c.other));
+  const paid = expenses.filter(e => e.status === "Paid").reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  setText("paidTotal", money(paid) + " / " + money(c.expenseTotal - paid));
+
+  setText("dashTeam", money(c.teamCost));
+  setText("dashExpenses", money(c.expenseTotal));
+  setText("dashCost", money(c.base));
+  setText("dashFinal", money(c.finalPrice));
+  setText("dashProject", $("projectName").value || "Not entered");
+  setText("dashId", $("projectId").value || "-");
+  setText("dashClient", $("clientName").value || "Not entered");
+  setText("dashCountry", countryName($("country").value) + " / " + $("currency").value);
+  setText("dashDuration", durationText());
+  $("dashBudgetStatus").textContent = c.budgetStatus;
+  $("dashBudgetStatus").className = "pill " + c.statusClass;
+
+  const percent = c.budget ? Math.min(100, c.finalPrice / c.budget * 100) : 0;
+  setText("budgetPercent", percent.toFixed(1) + "%");
+  $("budgetBar").style.width = percent + "%";
+
+  // cost breakdown bars on the dashboard
+  const parts = [["Team and manager", c.teamCost], ["Development", c.development], ["Marketing", c.marketing], ["Other", c.other]];
+  $("breakdown").innerHTML = parts.map(p => {
+    const share = c.base ? p[1] / c.base * 100 : 0;
+    return `<div class="bar-row"><div class="between"><span>${p[0]}</span><strong>${money(p[1])}</strong></div><div class="progress"><span style="width:${share}%"></span></div></div>`;
+  }).join("");
+
+  // calculation page
+  setText("calcTeam", money(c.teamCost));
+  setText("calcOther", money(c.expenseTotal));
+  setText("calcBase", money(c.base));
+  setText("calcProfit", money(c.profit));
+  setText("calcAdjustment", money(c.adjustment));
+  setText("calcNet", money(c.net));
+  setText("calcTax", money(c.tax));
+  setText("calcFinal", money(c.finalPrice));
+  setText("calcBudget", money(c.budget));
+  $("calcBudgetStatus").textContent = c.budgetStatus;
+  $("calcBudgetStatus").className = "pill " + c.statusClass;
+  setText("supplyHint", c.system === "india" ? (c.supply === "intra" ? "Result: same state, so CGST + SGST." : "Result: different states, so IGST.") : "");
+
+  renderReport(c);
+}
+
+/* ---------------------------------------------------------------------
+   3.10  VALIDATION
+   Each check returns true (fine) or false (a message was shown).
+   Mandatory boxes are checked FIRST, then the format of every box.
+   --------------------------------------------------------------------- */
+function validateProject(){
+  // 1. Mandatory boxes must not be empty.
+  if (!checkRequired(["clientName","countrySearch","clientEmail","clientContact","projectName","budget","startDate","endDate"])) return false;
+
+  // 2. Client name: letters only
+  const name = $("clientName");
+  if (!NAME_RE.test(name.value.trim())) return fail(name, "Client name must contain letters only.");
+
+  // Country must be one from the list
+  if (!COUNTRY_BY_CODE[$("country").value]) return fail($("countrySearch"), "Please choose a country from the list.");
+
+  // Company type: letters only (optional)
+  const ct = $("companyType");
+  if (ct.value.trim() && !NAME_RE.test(ct.value.trim())) return fail(ct, "Company type must contain letters only.");
+
+  // Client email: must be valid
+  const email = $("clientEmail");
+  if (!EMAIL_RE.test(email.value.trim())) return fail(email, "Please enter a valid client email address.");
+
+  // Phone: digits only (the country code is automatic)
+  const phone = $("clientContact");
+  if (!PHONE_RE.test(phone.value.trim())) return fail(phone, "Phone number must be digits only (5 to 15 digits).");
+
+  // Project name: letters only
+  const pn = $("projectName");
+  if (!NAME_RE.test(pn.value.trim())) return fail(pn, "Project name must contain letters only.");
+  if ($("projectType").value === "Other" && !$("otherProjectType").value.trim()) return fail($("otherProjectType"), "Please write your project type.");
+
+  // Budget: numbers only, and more than zero
+  const budget = $("budget");
+  if (!MONEY_RE.test(budget.value.trim())) return fail(budget, "Budget must be a number (example: 50000 or 50000.50).");
+  if (Number(budget.value) <= 0) return fail(budget, "Budget must be greater than zero.");
+
+  const start = $("startDate").value, end = $("endDate").value;
+  if (end < start) return fail($("endDate"), "End date cannot be earlier than the start date.");
+  return true;
+}
+
+// Project manager: name and email are mandatory. Name = letters only, contact = valid email.
+function validateManager(){
+  if (!checkRequired(["managerName","managerContact"])) return false;
+  const n = $("managerName"), c = $("managerContact");
+  if (!NAME_RE.test(n.value.trim())) return fail(n, "Manager name must contain letters only.");
+  if (!EMAIL_RE.test(c.value.trim())) return fail(c, "Manager contact must be a valid email address.");
+  const cost = $("managerCost");
+  if (cost.value !== "" && Number(cost.value) < 0) return fail(cost, "Manager cost cannot be negative.");
+  return true;
+}
+
+function validateCalculation(){
+  const profit = $("profitValue");
+  if (profit.value === "" || Number(profit.value) < 0) return fail(profit, "Profit value must be 0 or more.");
+  if ($("profitType").value === "percent" && Number(profit.value) > 1000) return fail(profit, "Profit percentage looks too high.");
+
+  const adj = $("adjustmentValue");
+  if (adj.value !== "" && Number(adj.value) < 0) return fail(adj, "Adjustment value cannot be negative.");
+  if ($("adjustmentMode").value === "percent" && Number(adj.value) > 100) return fail(adj, "Adjustment percentage cannot be more than 100.");
+
+  const rate = $("taxRate");
+  if ($("taxSystem").value !== "none" && (rate.value === "" || Number(rate.value) < 0 || Number(rate.value) > 100)) return fail(rate, "Tax rate must be between 0 and 100.");
+  if ($("taxSystem").value !== "none" && !$("taxLabel").value.trim()) return fail($("taxLabel"), "Please give the tax a name.");
+
+  const advance = $("customAdvance");
+  if ($("paymentTerms").value === "Custom" && (advance.value === "" || Number(advance.value) < 0 || Number(advance.value) > 100)) return fail(advance, "Custom advance must be between 0 and 100.");
+  return true;
+}
+
+// The big check before any report is created.
+function validateEverything(){
+  if (!validateProject()) { showPage("project"); return false; }
+  if (!validateManager()) { showPage("team"); return false; }
+  if (!validateCalculation()) { showPage("calculation"); return false; }
+  for (let i = 0; i < team.length; i++){
+    if (team[i].editing){ showPage("team"); return fail($("teamRows").children[i].querySelector('[data-key="name"]'), "Please press Save on every team member row first."); }
+    if (!NAME_RE.test(String(team[i].name).trim())){ showPage("team"); return fail(null, "A team member name must contain letters only."); }
+  }
+  if (!validateExpenses()){ showPage("expenses"); return false; }
+  return true;
+}
+
+/* ---------------------------------------------------------------------
+   3.11  REPORTS AND PDF
+   --------------------------------------------------------------------- */
+
+// Which parts (sections) each report type contains.
+const REPORT_PLAN = {
+  Detailed: ["client","project","manager","team","expenses","financial","budget","notes"],
+  Summary:  ["project","financial","budget"],
+  Client:   ["client","project","quote","payment"],
+  Internal: ["project","manager","team","expenses","financial","budget"],
+  Full:     ["client","project","manager","team","expenses","financial","quote","budget","payment","notes"]
+};
+const REPORT_TITLE = {Detailed:"Detailed Report", Summary:"Summary Report", Client:"Client Report", Internal:"Internal Report", Full:"Full Project Report"};
+
+// The payment stages that match the chosen payment plan.
+function paymentPlan(){
+  const plan = $("paymentTerms").value;
+  if (plan === "Full Payment") return [["Full payment", 100]];
+  if (plan.startsWith("50%")) return [["Advance", 50], ["On delivery", 50]];
+  if (plan.startsWith("30%")) return [["Advance", 30], ["During development", 40], ["On delivery", 30]];
+  if (plan.startsWith("25%")) return [["Advance", 25], ["During development", 50], ["On delivery", 25]];
+  const advance = Math.min(num("customAdvance"), 100);
+  return [["Advance", advance], ["On delivery", 100 - advance]];
+}
+
+// Each function below builds one part of a report. "n" is the section number.
+const SECTIONS = {
+  client: (c, n) => `<h3>${n}. Client information</h3><table><tbody>
+    <tr><th>Client name</th><td>${esc($("clientName").value || "-")}</td><th>Client type</th><td>${esc($("clientType").value)}</td></tr>
+    <tr><th>Country</th><td>${esc(countryName($("country").value))}</td><th>Client status</th><td>${esc($("clientStatus").value)}</td></tr>
+    <tr><th>Company type</th><td>${esc($("companyType").value || "-")}</td><th>Email</th><td>${esc($("clientEmail").value || "-")}</td></tr>
+    <tr><th>Phone</th><td colspan="3">${esc(($("clientPhoneCode").value + " " + $("clientContact").value).trim() || "-")}</td></tr></tbody></table>`,
+
+  project: (c, n) => `<h3>${n}. Project information</h3><table><tbody>
+    <tr><th>Project name</th><td>${esc($("projectName").value || "-")}</td><th>Project ID</th><td>${esc($("projectId").value || "-")}</td></tr>
+    <tr><th>Project type</th><td>${esc($("projectType").value === "Other" ? $("otherProjectType").value : $("projectType").value)}</td><th>Priority</th><td>${esc($("priority").value)}</td></tr>
+    <tr><th>Pricing type</th><td>${esc($("pricingType").value)}</td><th>Currency</th><td>${esc($("currency").value)}</td></tr>
+    <tr><th>Start date</th><td>${esc($("startDate").value || "-")}</td><th>End date</th><td>${esc($("endDate").value || "-")}</td></tr>
+    <tr><th>Duration</th><td>${esc(durationText())}</td><th>Client budget</th><td>${money(c.budget)}</td></tr></tbody></table>`,
+
+  manager: (c, n) => `<h3>${n}. Project manager</h3><table><tbody>
+    <tr><th>Name</th><td>${esc($("managerName").value || "-")}</td><th>Email</th><td>${esc($("managerContact").value || "-")}</td></tr>
+    <tr><th>Manager cost</th><td colspan="3">${money(c.manager)}</td></tr></tbody></table>`,
+
+  team: (c, n) => `<h3>${n}. Team members</h3><table><thead><tr><th>Name</th><th>Role</th><th>Employment</th><th>Payment</th><th>Experience</th><th>Cost</th></tr></thead><tbody>
+    ${team.map(m => `<tr><td>${esc(m.name)}</td><td>${esc(m.role)}</td><td>${esc(m.employment)}</td><td>${esc(m.payment)}</td><td>${esc(m.experience)}</td><td>${money(m.cost)}</td></tr>`).join("") || '<tr><td colspan="6">No team members added</td></tr>'}</tbody></table>`,
+
+  expenses: (c, n) => `<h3>${n}. Expense details</h3><table><thead><tr><th>Name</th><th>Category</th><th>Type</th><th>Status</th><th>Method</th><th>Date</th><th>Amount</th></tr></thead><tbody>
+    ${expenses.map(e => `<tr><td>${esc(e.name)}</td><td>${esc(e.category)}</td><td>${esc(e.type)}</td><td>${esc(e.status)}</td><td>${esc(e.method)}</td><td>${esc(e.date)}</td><td>${money(e.amount)}</td></tr>`).join("") || '<tr><td colspan="7">No expenses added</td></tr>'}</tbody></table>`,
+
+  // Internal money summary (shows cost and profit). Never put this in a Client report.
+  financial: (c, n) => `<h3>${n}. Financial summary</h3><table><tbody>
+    <tr><th>Team cost (including manager)</th><td>${money(c.teamCost)}</td></tr>
+    <tr><th>Development expenses</th><td>${money(c.development)}</td></tr>
+    <tr><th>Marketing expenses</th><td>${money(c.marketing)}</td></tr>
+    <tr><th>Other expenses</th><td>${money(c.other)}</td></tr>
+    <tr><th>Total project expense</th><td><strong>${money(c.base)}</strong></td></tr>
+    <tr><th>Profit ${c.base ? "(" + (c.profit / c.base * 100).toFixed(1) + "% of cost)" : ""}</th><td>${money(c.profit)}</td></tr>
+    <tr><th>Discount / additional charge</th><td>${money(c.adjustment)}</td></tr>
+    <tr><th>Amount before tax</th><td>${money(c.net)}</td></tr>
+    ${taxRows(c)}
+    <tr><th>Final project price</th><td style="font-size:18px;color:#6558e8"><strong>${money(c.finalPrice)}</strong></td></tr></tbody></table>`,
+
+  // Client-facing price. Cost and profit are NOT shown separately here.
+  quote: (c, n, type) => `${type === "Full" ? '<div class="pb"></div>' : ""}<h3>${n}. Price quotation</h3><table><tbody>
+    <tr><th>Project price</th><td>${money(c.before)}</td></tr>
+    <tr><th>Discount / additional charge</th><td>${money(c.adjustment)}</td></tr>
+    <tr><th>Amount before tax</th><td>${money(c.net)}</td></tr>
+    ${taxRows(c)}
+    <tr><th>Total payable</th><td style="font-size:18px;color:#6558e8"><strong>${money(c.finalPrice)}</strong></td></tr></tbody></table>
+    <p style="font-size:11px;color:#68708b">${$("taxIncluded").value === "yes" ? "Tax is included in the quoted price." : "Tax is added on top of the quoted price."}</p>`,
+
+  budget: (c, n) => `<h3>${n}. Budget summary</h3><table><tbody>
+    <tr><th>Client budget</th><td>${money(c.budget)}</td><th>Final price</th><td>${money(c.finalPrice)}</td></tr>
+    <tr><th>Budget status</th><td><strong>${esc(c.budgetStatus)}</strong></td><th>Difference</th><td>${c.budget ? money(c.budget - c.finalPrice) : "-"}</td></tr>
+    <tr><th>Payment plan</th><td>${esc($("paymentTerms").value)}</td><th>Tax treatment</th><td>${$("taxIncluded").value === "yes" ? "Tax included" : "Tax added"}</td></tr></tbody></table>`,
+
+  payment: (c, n) => `<h3>${n}. Payment schedule</h3><table><thead><tr><th>Stage</th><th>Share</th><th>Amount</th></tr></thead><tbody>
+    ${paymentPlan().map(p => `<tr><td>${esc(p[0])}</td><td>${p[1]}%</td><td>${money(c.finalPrice * p[1] / 100)}</td></tr>`).join("")}</tbody></table>`,
+
+  notes: (c, n) => $("projectNotes").value.trim() ? `<h3>${n}. Project scope / notes</h3><p style="font-size:12px;line-height:1.7;white-space:pre-wrap">${esc($("projectNotes").value)}</p>` : ""
+};
+
+// Tax lines. For India they also show CGST + SGST or IGST.
+function taxRows(c){
+  const name = esc($("taxLabel").value || "Tax");
+  let html = `<tr><th>${name} (${c.rate}%)</th><td>${money(c.tax)}</td></tr>`;
+  if (c.system === "india"){
+    html += c.supply === "intra"
+      ? `<tr><th>CGST (${c.rate / 2}%)</th><td>${money(c.cgst)}</td></tr><tr><th>SGST (${c.rate / 2}%)</th><td>${money(c.sgst)}</td></tr>`
+      : `<tr><th>IGST (${c.rate}%)</th><td>${money(c.igst)}</td></tr>`;
+  }
+  return html;
+}
+
+// Build the whole report as HTML text.
+function buildReport(type, c){
+  let n = 0;
+  const body = REPORT_PLAN[type].map(key => {
+    const html = SECTIONS[key](c, n + 1, type);
+    if (html) n++;                      // count only sections that were really printed
+    return html;
+  }).join("");
+  return `<div class="rp-head">
+      <div><div style="font-size:25px;font-weight:950;letter-spacing:2px;color:#6558e8">EXPENOMICS</div>
+      <div style="font-size:11px;color:#68708b">PROJECT COST ESTIMATION AND FINANCIAL REPORT</div></div>
+      <div style="text-align:right;font-size:12px"><strong>${REPORT_TITLE[type]}</strong><br>Project ${esc($("projectId").value || "-")}<br>Generated: ${new Date().toLocaleDateString()}</div>
+    </div>${body}
+    <p style="font-size:10px;color:#70778b;margin-top:22px;line-height:1.6">Disclaimer: This report is an estimate based on the information entered by the user. Tax rates and tax treatment must be checked against the applicable local law and transaction facts. EXPENOMICS is not a tax invoice or professional tax advice.</p>
+    <div style="margin-top:18px;border-top:1px solid #ddd;padding-top:10px;font-size:10px;color:#777">Prepared with EXPENOMICS</div>`;
+}
+
+// Show the chosen report on the Report page.
+function renderReport(c){
+  if (!$("reportContent")) return;
+  $("reportContent").innerHTML = buildReport($("reportType").value, c || calculate());
+}
+
+// Open the browser print window with the given HTML. The user picks "Save as PDF".
+function printHtml(html){
+  $("printArea").innerHTML = '<div class="report-paper">' + html + "</div>";
+  document.body.classList.add("printing");
+  window.print();
+}
+// After printing (or cancelling) bring the normal screen back.
+window.addEventListener("afterprint", () => {
+  document.body.classList.remove("printing");
+  $("printArea").innerHTML = "";
+});
+
+// Download ONLY the report type that is selected (detail, summary, client or internal).
+function downloadReport(){
+  if (!validateEverything()) return;
+  printHtml(buildReport($("reportType").value, calculate()));
+}
+// Download everything in one PDF.
+function downloadFull(){
+  if (!validateEverything()) return;
+  printHtml(buildReport("Full", calculate()));
+}
+
+/* ---------------------------------------------------------------------
+   3.12  COMPANY DIRECTORY
+   A saved company keeps: its report (for viewing) and all its data (for editing).
+   --------------------------------------------------------------------- */
+function getCompanies(){ return readJSON(KEY.companies, []); }
+
+function saveCompany(){
+  saveWork();
+  const work = readJSON(KEY.work, {});
+  const record = {
+    id: $("projectId").value,
+    name: $("clientName").value.trim() || "Unnamed client",
+    project: $("projectName").value.trim() || "Untitled project",
+    country: countryName($("country").value),
+    savedAt: new Date().toLocaleString(),
+    html: buildReport("Full", calculate()),
+    work: work
+  };
+  const list = getCompanies();
+  const at = list.findIndex(r => r.id === record.id);   // same project ID = update, not duplicate
+  if (at >= 0) list[at] = record; else list.push(record);
+  writeJSON(KEY.companies, list);
+  renderCompanies();
+}
+
+function saveProject(){
+  if (!validateProject()) { showPage("project"); return; }
+  if (!validateManager()) { showPage("team"); return; }
+  saveWork(); updateAll(); saveCompany();
+  toast("Project saved and added to the Company Directory.");
+}
+
+function renderCompanies(){
+  const list = getCompanies();
+  if (!list.length){
+    $("companyRows").innerHTML = '<tr><td colspan="6">No saved companies yet. Save a project to add it here.</td></tr>';
+    return;
+  }
+  $("companyRows").innerHTML = list.map((r, i) => `<tr>
+    <td>${esc(r.name)}</td><td>${esc(r.id)}</td><td>${esc(r.project)}</td><td>${esc(r.country)}</td><td>${esc(r.savedAt)}</td>
+    <td><div class="row">
+      <button type="button" class="btn sm" data-action="openCompany" data-index="${i}">Open report</button>
+      <button type="button" class="btn secondary sm" data-action="editCompany" data-index="${i}">Edit</button>
+      <button type="button" class="btn danger sm" data-action="deleteCompany" data-index="${i}">Delete</button>
+    </div></td></tr>`).join("");
+}
+
+let openedCompany = -1;   // which company is shown in the preview
+function openCompany(i){
+  const record = getCompanies()[i];
+  if (!record) return;
+  openedCompany = i;
+  $("companyPreviewContent").innerHTML = record.html;
+  $("companyPreview").classList.remove("hidden");
+  $("companyPreview").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function downloadCompany(){
+  const record = getCompanies()[openedCompany];
+  if (!record) return toast("Open a company report first.");
+  printHtml(record.html);
+}
+// Load a saved company back into the workspace so it can be changed.
+function editCompany(i){
+  const record = getCompanies()[i];
+  if (!record) return;
+  resetFields();
+  applyWork(record.work);
+  renderTeam(); renderExpenses(); toggleTaxFields(); saveWork();
+  showPage("project");
+  toast("Company loaded. Make your changes and press Save project details.");
+}
+function deleteCompany(i){
+  if (!window.confirm("Delete this saved company from the directory?")) return;
+  const list = getCompanies();
+  list.splice(i, 1);
+  writeJSON(KEY.companies, list);
+  $("companyPreview").classList.add("hidden");
+  renderCompanies();
+}
+
+// Put every box back to its starting value.
+function resetFields(){
+  Object.keys(DEFAULTS).forEach(id => { const el = $(id); if (el) el.value = DEFAULTS[id]; });
+  team = []; expenses = [];
+}
+
+// Start a fresh project (old saved companies stay in the directory).
+function newProject(){
+  resetFields();
+  applyCountry("IN");
+  $("projectId").value = nextProjectId();
+  renderTeam(); renderExpenses(); toggleTaxFields(); updateAll(); saveWork();
+  showPage("project");
+  toast("New project started. Saved companies are still in the directory.");
+}
+
+/* ---------------------------------------------------------------------
+   3.13  EVENTS  (what happens when the user clicks or types)
+   ONE click listener handles every button through its "data-action" name.
+   --------------------------------------------------------------------- */
+document.addEventListener("click", event => {
+  const button = event.target.closest("[data-action]");
+  if (!button) return;
+  const action = button.dataset.action;
+  const i = Number(button.dataset.index);
+
+  switch (action){
+    // login screen
+    case "togglePw":       togglePassword(button.dataset.field, button); break;
+    case "createAccount":  createAccount(); break;
+    case "loginAccount":   loginAccount(); break;
+    case "showLogin":      showLogin(); break;
+    case "showSignup":     showSignup(); break;
+    // layout
+    case "nav":            showPage(button.dataset.page); break;
+    case "logout":         logout(); break;
+    case "menu":           $("sidebar").classList.toggle("open"); break;
+    case "theme":          toggleTheme(); break;
+    // project and directory
+    case "saveProject":    saveProject(); break;
+    case "newProject":     newProject(); break;
+    case "openCompany":    openCompany(i); break;
+    case "editCompany":    editCompany(i); break;
+    case "deleteCompany":  deleteCompany(i); break;
+    case "downloadCompany":downloadCompany(); break;
+    // team
+    case "addMember":      addMember(); break;
+    case "saveMember":     saveMember(i); break;
+    case "editMember":     editMember(i); break;
+    case "removeMember":   removeMember(i); break;
+    // expenses
+    case "addExpense":     addExpense(); break;
+    case "saveExpenses":   saveExpenses(); break;
+    case "removeExpense":  removeExpense(i); break;
+    // reports
+    case "downloadReport": downloadReport(); break;
+    case "downloadFull":   downloadFull(); break;
+    default: console.warn("Unknown action:", action);
+  }
+});
+
+// Country box: open the list when clicked, pick a country with the mouse / finger.
+$("countrySearch").addEventListener("focus", () => { $("countrySearch").select(); showCountryList(true); });
+$("countrySearch").addEventListener("click", () => { if ($("countryList").classList.contains("hidden")) showCountryList(true); });
+$("countryList").addEventListener("mousedown", e => {
+  const item = e.target.closest("[data-code]");
+  if (!item) return;
+  e.preventDefault();                       // keep focus so no "change" event resets the box
+  applyCountry(item.dataset.code);          // currency, phone code and tax are set automatically
+  hideCountryList();
+  updateAll(); saveWork();
+});
+// Click anywhere else: close the list.
+document.addEventListener("click", e => {
+  if (!e.target.closest("#countrySearch") && !e.target.closest("#countryList")) hideCountryList();
+});
+// Escape key closes the list too.
+$("countrySearch").addEventListener("keydown", e => { if (e.key === "Escape") hideCountryList(); });
+
+// Runs whenever a box is typed in or a drop-down is changed.
+function onFieldEvent(event){
+  const t = event.target;
+  if (!t.closest || !t.closest("#appScreen")) return;
+  t.classList.remove("invalid");                       // remove the red border when the user edits
+  sanitize(t);                                         // wrong characters (digits in a name, letters in a phone) are removed at once
+
+  // A box inside the team or expense table: copy the value into the data list.
+  if (t.dataset.list){
+    const rows = t.dataset.list === "team" ? team : expenses;
+    const item = rows[Number(t.dataset.index)];
+    if (item) item[t.dataset.key] = t.value;
+    updateAll(); saveWork();
+    return;
+  }
+
+  // Country box: show matching countries while typing; when a full name matches, apply it.
+  if (t.id === "countrySearch"){
+    if (event.type === "input") showCountryList(false);
+    const match = COUNTRY_BY_NAME[t.value.trim().toLowerCase()];
+    if (match && match.code !== $("country").value) applyCountry(match.code);
+    if (event.type === "change" && !match){                 // left the box with an unknown name
+      toast("Please choose a country from the list.");
+      t.value = countryName($("country").value);
+    }
+  }
+  if (t.id === "regionSelect") applyRegion();
+  if (t.id === "taxSystem"){                              // new tax system: use its normal name
+    $("taxLabel").value = DEFAULT_LABEL[t.value] || "";
+  }
+  if (["taxSystem", "paymentTerms", "projectType"].includes(t.id)) toggleTaxFields();
+
+  updateAll(); saveWork();
+}
+document.addEventListener("input", onFieldEvent);
+document.addEventListener("change", onFieldEvent);
+
+// Sign-up / login boxes are outside #appScreen: remove the red border and wrong characters while typing.
+["signupName","signupEmail","signupPassword","signupConfirm","loginEmail","loginPassword"].forEach(id => {
+  $(id).addEventListener("input", e => { e.target.classList.remove("invalid"); sanitize(e.target); });
+});
+
+/* ---- PASSWORD BOXES (sign up, confirm, login) ------------------------
+   * Spaces are removed at once.
+   * A live counter shows 3/8 ... 8/8 under the box (red until exactly 8).
+   * The box itself stops at 8 characters (maxlength="8"), so more than 8 cannot be typed
+     or pasted. If the user tries a 9th character, a small message is shown.
+   * Letters, numbers and any symbol are accepted.
+   --------------------------------------------------------------------- */
+[["signupPassword","pwCount"], ["signupConfirm","confirmCount"], ["loginPassword","loginPwCount"]].forEach(pair => {
+  const id = pair[0], counter = pair[1];
+  $(id).addEventListener("input", () => {
+    $(id).value = $(id).value.replace(/\s/g, "");
+    updatePasswordCount(id, counter);
+  });
+  $(id).addEventListener("keydown", e => {
+    const el = e.target;
+    const printable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+    if (printable && el.value.length >= PASSWORD_LENGTH && el.selectionStart === el.selectionEnd)
+      toast("Password cannot be more than " + PASSWORD_LENGTH + " characters.");
+  });
+});
+
+// Pressing Enter on the login or sign-up screen works like pressing the button.
+document.addEventListener("keydown", event => {
+  if (event.key !== "Enter") return;
+  const id = event.target.id || "";
+  if (id.startsWith("signup")) createAccount();
+  if (id === "loginEmail" || id === "loginPassword") loginAccount();
+});
+
+// Report type drop-down: show the chosen report.
+$("reportType").addEventListener("change", () => renderReport());
+
+/* ---------------------------------------------------------------------
+   3.14  START OF THE APP
+   --------------------------------------------------------------------- */
+(function start(){
+  applyTheme(store.getItem(KEY.theme) || "light");
+  buildLists();
+  markRequired();                       // red * on every mandatory label
+
+  // Remember the starting value of every box so "New project" can reset them.
+  appFields().forEach(el => { DEFAULTS[el.id] = el.value; });
+
+  const account = readJSON(KEY.account, null);
+  if (account && store.getItem(KEY.auth) === "1"){
+    // Page was refreshed inside the same tab: stay logged in.
+    currentUser = {name:account.name, email:account.email};
+    openApp(false);
+  } else {
+    $("authScreen").classList.remove("hidden");
+    $("appScreen").classList.add("hidden");
+    if (account) showLogin(); else showSignup();
+  }
+})();
+</script>
+</body>
+</html>
